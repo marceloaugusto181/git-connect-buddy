@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { Menu, Bell, Search } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Overview from './Overview';
+import Agenda from './Agenda';
+import Patients from './Patients';
+import Financial from './Financial';
+import Tasks from './Tasks';
+import Leads from './Leads';
+import Documents from './Documents';
+import Partners from './Partners';
+import Automations from './Automations';
+import Security from './Security';
+import Resources from './Resources';
 import { Page } from '../types';
 
 const Dashboard: React.FC = () => {
@@ -11,25 +21,23 @@ const Dashboard: React.FC = () => {
   const renderContent = () => {
     switch (activePage) {
       case 'overview': return <Overview onNavigate={setActivePage} />;
-      default: return (
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-foreground mb-2 capitalize">{activePage}</h2>
-            <p className="text-muted-foreground">Página em desenvolvimento</p>
-          </div>
-        </div>
-      );
+      case 'agenda': return <Agenda />;
+      case 'patients': return <Patients />;
+      case 'financial': return <Financial />;
+      case 'tasks': return <Tasks />;
+      case 'leads': return <Leads />;
+      case 'documents': return <Documents />;
+      case 'partners': return <Partners />;
+      case 'automations': return <Automations />;
+      case 'security': return <Security />;
+      case 'resources': return <Resources />;
+      default: return <Overview onNavigate={setActivePage} />;
     }
   };
 
   return (
     <div className="flex h-screen overflow-hidden selection:bg-primary/20 selection:text-primary">
-      <Sidebar
-        activePage={activePage}
-        setPage={setActivePage}
-        isMobileOpen={isMobileMenuOpen}
-        setIsMobileOpen={setIsMobileMenuOpen}
-      />
+      <Sidebar activePage={activePage} setPage={setActivePage} isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
         <header className="h-20 bg-transparent flex items-center justify-between px-6 lg:px-10 z-20">
@@ -48,7 +56,6 @@ const Dashboard: React.FC = () => {
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full border-2 border-card"></span>
             </button>
-
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-foreground leading-none">Dra. Helena Souza</p>
@@ -65,9 +72,7 @@ const Dashboard: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
-          <div className="max-w-[1400px] mx-auto">
-            {renderContent()}
-          </div>
+          <div className="max-w-[1400px] mx-auto">{renderContent()}</div>
         </main>
       </div>
     </div>
