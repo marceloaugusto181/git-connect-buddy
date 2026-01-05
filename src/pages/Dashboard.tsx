@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Bell, Search } from 'lucide-react';
+import { Menu, Bell, Search, LogOut } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Overview from './Overview';
 import Agenda from './Agenda';
@@ -13,10 +13,22 @@ import Automations from './Automations';
 import Security from './Security';
 import Resources from './Resources';
 import { Page } from '../types';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const Dashboard: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: 'Até logo!',
+      description: 'Você foi desconectado com sucesso.',
+    });
+  };
 
   const renderContent = () => {
     switch (activePage) {
@@ -52,18 +64,27 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
+            <button 
+              onClick={handleSignOut}
+              className="p-3 bg-card text-muted-foreground hover:text-destructive rounded-2xl shadow-sm border border-border transition-all"
+              title="Sair"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
             <button className="p-3 bg-card text-muted-foreground hover:text-primary rounded-2xl shadow-sm border border-border transition-all relative">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full border-2 border-card"></span>
             </button>
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-foreground leading-none">Dra. Helena Souza</p>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">CRP 06/123456</p>
+                <p className="text-sm font-bold text-foreground leading-none">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'}</p>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">{user?.email}</p>
               </div>
               <div className="relative">
-                <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-lg border-2 border-card ring-1 ring-border">
-                  <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150" className="w-full h-full object-cover" alt="Profile" />
+                <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-lg border-2 border-card ring-1 ring-border bg-primary/10 flex items-center justify-center">
+                  <span className="text-primary font-bold text-lg">
+                    {(user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+                  </span>
                 </div>
                 <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald rounded-full border-2 border-card"></span>
               </div>

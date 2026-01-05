@@ -14,7 +14,212 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          created_at: string
+          date: string
+          duration: number | null
+          id: string
+          meet_link: string | null
+          notes: string | null
+          patient_id: string
+          reminder_sent: boolean | null
+          status: string | null
+          therapist_id: string
+          time: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          duration?: number | null
+          id?: string
+          meet_link?: string | null
+          notes?: string | null
+          patient_id: string
+          reminder_sent?: boolean | null
+          status?: string | null
+          therapist_id: string
+          time: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          duration?: number | null
+          id?: string
+          meet_link?: string | null
+          notes?: string | null
+          patient_id?: string
+          reminder_sent?: boolean | null
+          status?: string | null
+          therapist_id?: string
+          time?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clinical_records: {
+        Row: {
+          appointment_id: string | null
+          content: string | null
+          created_at: string
+          goals: string | null
+          id: string
+          observations: string | null
+          patient_id: string
+          sentiment: string | null
+          session_date: string
+          therapist_id: string
+          updated_at: string
+          wellbeing_score: number | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          content?: string | null
+          created_at?: string
+          goals?: string | null
+          id?: string
+          observations?: string | null
+          patient_id: string
+          sentiment?: string | null
+          session_date: string
+          therapist_id: string
+          updated_at?: string
+          wellbeing_score?: number | null
+        }
+        Update: {
+          appointment_id?: string | null
+          content?: string | null
+          created_at?: string
+          goals?: string | null
+          id?: string
+          observations?: string | null
+          patient_id?: string
+          sentiment?: string | null
+          session_date?: string
+          therapist_id?: string
+          updated_at?: string
+          wellbeing_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinical_records_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinical_records_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          address: string | null
+          birth_date: string | null
+          cpf: string | null
+          created_at: string
+          email: string | null
+          emergency_contact: string | null
+          emergency_phone: string | null
+          id: string
+          name: string
+          notes: string | null
+          payment_status: string | null
+          phone: string | null
+          session_value: number | null
+          status: string | null
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          birth_date?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          payment_status?: string | null
+          phone?: string | null
+          session_value?: number | null
+          status?: string | null
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          birth_date?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          payment_status?: string | null
+          phone?: string | null
+          session_value?: number | null
+          status?: string | null
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          crp: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          specialty: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          crp?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          specialty?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          crp?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          specialty?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
