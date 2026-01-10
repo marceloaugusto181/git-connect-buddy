@@ -12,15 +12,18 @@ import Partners from './Partners';
 import Automations from './Automations';
 import Security from './Security';
 import Resources from './Resources';
+import AvatarUpload from '@/components/AvatarUpload';
 import { Page } from '../types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useProfile } from '@/hooks/useProfile';
 
 const Dashboard: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const { profile, uploading, uploadAvatar } = useProfile();
 
   const handleSignOut = async () => {
     await signOut();
@@ -77,17 +80,17 @@ const Dashboard: React.FC = () => {
             </button>
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-foreground leading-none">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'}</p>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">{user?.email}</p>
+                <p className="text-sm font-bold text-foreground leading-none">{profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'}</p>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">{profile?.specialty || user?.email}</p>
               </div>
-              <div className="relative">
-                <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-lg border-2 border-card ring-1 ring-border bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary font-bold text-lg">
-                    {(user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald rounded-full border-2 border-card"></span>
-              </div>
+              <AvatarUpload
+                avatarUrl={profile?.avatar_url || null}
+                fullName={profile?.full_name || user?.user_metadata?.full_name}
+                email={user?.email || ''}
+                uploading={uploading}
+                onUpload={uploadAvatar}
+                size="sm"
+              />
             </div>
           </div>
         </header>
