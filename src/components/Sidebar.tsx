@@ -1,5 +1,7 @@
 import React from 'react';
 import { LayoutDashboard, Calendar, DollarSign, Users, Zap, LogOut, FileText, CheckSquare, Sparkles, BrainCircuit, Settings, Target, FileSignature, Share2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Page } from '../types';
 
 interface SidebarProps {
@@ -10,6 +12,9 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, isMobileOpen, setIsMobileOpen }) => {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  
   const menuItems = [
     { id: 'overview', label: 'Início', icon: LayoutDashboard },
     { id: 'patients', label: 'Pacientes', icon: Users },
@@ -79,14 +84,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, isMobileOpen, se
 
         <div className="p-8 mt-auto space-y-4">
           <button
-            onClick={() => { setPage('security'); setIsMobileOpen(false); }}
-            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold transition-all ${activePage === 'security' ? 'bg-foreground text-background shadow-lg' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+            onClick={() => { navigate('/settings'); setIsMobileOpen(false); }}
+            className="w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
           >
             <Settings className="w-5 h-5" />
             Configurações
           </button>
 
           <button
+            onClick={signOut}
             className="w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
           >
             <LogOut className="w-5 h-5" />
