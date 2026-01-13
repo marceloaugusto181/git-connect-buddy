@@ -1,28 +1,73 @@
-import React, { useState } from 'react';
-import { DollarSign, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, Download, Target, Wallet } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { DollarSign, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, Download, Target, Loader2 } from 'lucide-react';
 import StatCard from '../components/StatCard';
-import { recentTransactions } from '../utils/mockData';
+import TransactionFormModal from '../components/TransactionFormModal';
+import { useTransactions, TransactionInsert } from '@/hooks/useTransactions';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 const Financial: React.FC = () => {
+  const { transactions, isLoading, summary, createTransaction } = useTransactions();
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const pieData = [
-    { name: 'Recebido', value: 12450, color: '#6366f1' },
-    { name: 'Aguardando', value: 2200, color: '#e2e8f0' },
-  ];
+  const pieData = useMemo(() => [
+    { name: 'Recebido', value: summary.confirmedIncome, color: '#6366f1' },
+    { name: 'Aguardando', value: summary.pendingIncome, color: '#e2e8f0' },
+  ], [summary]);
 
-  const cashFlowData = [
-    { name: 'Mar', entrada: 11000, saida: 3200 },
-    { name: 'Abr', entrada: 13000, saida: 3500 },
-    { name: 'Mai', entrada: 12450, saida: 4100 },
-    { name: 'Jun', entrada: 15000, saida: 3800 },
-  ];
+  // Calculate cash flow for last 4 months
+  const cashFlowData = useMemo(() => {
+    const months: { [key: string]: { entrada: number; saida: number } } = {};
+    const today = new Date();
+    
+    // Initialize last 4 months
+    for (let i = 3; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const key = d.toISOString().slice(0, 7);
+      months[key] = { entrada: 0, saida: 0 };
+    }
 
-  const filteredTransactions = recentTransactions.filter(t => {
+    // Aggregate transactions
+    transactions.forEach(t => {
+      const monthKey = t.date.slice(0, 7);
+      if (months[monthKey]) {
+        if (t.type === 'income') {
+          months[monthKey].entrada += Number(t.amount);
+        } else {
+          months[monthKey].saida += Number(t.amount);
+        }
+      }
+    });
+
+    return Object.entries(months).map(([key, value]) => ({
+      name: new Date(key + '-01').toLocaleDateString('pt-BR', { month: 'short' }),
+      ...value,
+    }));
+  }, [transactions]);
+
+  const filteredTransactions = transactions.filter(t => {
     if (filterType === 'all') return true;
     return t.type === filterType;
   });
+
+  const handleSaveTransaction = async (data: TransactionInsert) => {
+    await createTransaction.mutateAsync(data);
+  };
+
+  const formatCurrency = (value: number) => {
+    if (value >= 1000) {
+      return `R$ ${(value / 1000).toFixed(1)}k`;
+    }
+    return `R$ ${value.toLocaleString('pt-BR')}`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-flow">
@@ -35,7 +80,10 @@ const Financial: React.FC = () => {
           <button className="flex items-center gap-2 bg-card border border-border text-muted-foreground px-5 py-3 rounded-xl font-bold text-sm hover:border-foreground hover:text-foreground transition">
             <Download className="w-4 h-4" /> Exportar
           </button>
-          <button className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-xl font-bold text-sm shadow-lg">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-xl font-bold text-sm shadow-lg"
+          >
             <DollarSign className="w-4 h-4" /> Nova Transação
           </button>
         </div>
@@ -43,10 +91,38 @@ const Financial: React.FC = () => {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard kpi={{ label: "Faturamento", value: "R$ 14.6k", icon: DollarSign, change: "+18%", trend: "up", color: "bg-primary text-primary-foreground", description: "Total do mês" }} />
-        <StatCard kpi={{ label: "Recebido", value: "R$ 12.4k", icon: TrendingUp, change: "85%", trend: "up", color: "bg-emerald text-primary-foreground", description: "Já confirmado" }} />
-        <StatCard kpi={{ label: "Pendente", value: "R$ 2.2k", icon: CreditCard, change: "3 cobranças", trend: "neutral", color: "bg-amber text-foreground", description: "A receber" }} />
-        <StatCard kpi={{ label: "Meta", value: "92%", icon: Target, change: "+8%", trend: "up", color: "bg-purple text-primary-foreground", description: "Do objetivo mensal" }} />
+        <StatCard kpi={{ 
+          label: "Faturamento", 
+          value: formatCurrency(summary.totalIncome), 
+          icon: DollarSign, 
+          change: "Total do mês", 
+          trend: "up", 
+          color: "bg-primary text-primary-foreground" 
+        }} />
+        <StatCard kpi={{ 
+          label: "Recebido", 
+          value: formatCurrency(summary.confirmedIncome), 
+          icon: TrendingUp, 
+          change: summary.totalIncome > 0 ? `${Math.round((summary.confirmedIncome / summary.totalIncome) * 100)}%` : "0%", 
+          trend: "up", 
+          color: "bg-emerald text-primary-foreground" 
+        }} />
+        <StatCard kpi={{ 
+          label: "Pendente", 
+          value: formatCurrency(summary.pendingIncome), 
+          icon: CreditCard, 
+          change: "A receber", 
+          trend: "neutral", 
+          color: "bg-amber text-foreground" 
+        }} />
+        <StatCard kpi={{ 
+          label: "Despesas", 
+          value: formatCurrency(summary.totalExpense), 
+          icon: Target, 
+          change: "Total do mês", 
+          trend: "down", 
+          color: "bg-destructive text-destructive-foreground" 
+        }} />
       </div>
 
       {/* Charts Section */}
@@ -62,7 +138,7 @@ const Financial: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `R$ ${value.toLocaleString('pt-BR')}`} />
+                <Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -84,10 +160,10 @@ const Financial: React.FC = () => {
               <BarChart data={cashFlowData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => `${value / 1000}k`} />
-                <Tooltip formatter={(value) => `R$ ${value.toLocaleString('pt-BR')}`} />
-                <Bar dataKey="entrada" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="saida" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => value >= 1000 ? `${value / 1000}k` : value} />
+                <Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`} />
+                <Bar dataKey="entrada" fill="#6366f1" radius={[4, 4, 0, 0]} name="Entradas" />
+                <Bar dataKey="saida" fill="#f43f5e" radius={[4, 4, 0, 0]} name="Saídas" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -110,7 +186,15 @@ const Financial: React.FC = () => {
           <h3 className="text-lg font-black text-foreground">Últimas Transações</h3>
           <div className="flex gap-2">
             {(['all', 'income', 'expense'] as const).map(type => (
-              <button key={type} onClick={() => setFilterType(type)} className={`px-4 py-2 rounded-xl font-bold text-sm transition ${filterType === type ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+              <button 
+                key={type} 
+                onClick={() => setFilterType(type)} 
+                className={`px-4 py-2 rounded-xl font-bold text-sm transition ${
+                  filterType === type 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
                 {type === 'all' ? 'Todas' : type === 'income' ? 'Receitas' : 'Despesas'}
               </button>
             ))}
@@ -118,27 +202,47 @@ const Financial: React.FC = () => {
         </div>
 
         <div className="space-y-3">
-          {filteredTransactions.map(transaction => (
-            <div key={transaction.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-2xl hover:bg-muted transition">
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${transaction.type === 'income' ? 'bg-emerald/20 text-emerald' : 'bg-destructive/20 text-destructive'}`}>
-                  {transaction.type === 'income' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+          {filteredTransactions.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Nenhuma transação registrada</p>
+          ) : (
+            filteredTransactions.slice(0, 10).map(transaction => (
+              <div key={transaction.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-2xl hover:bg-muted transition">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    transaction.type === 'income' 
+                      ? 'bg-emerald/20 text-emerald' 
+                      : 'bg-destructive/20 text-destructive'
+                  }`}>
+                    {transaction.type === 'income' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground">{transaction.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {transaction.category}
+                      {transaction.patient?.name && ` • ${transaction.patient.name}`}
+                      {transaction.status === 'pendente' && (
+                        <span className="ml-2 px-2 py-0.5 bg-amber/20 text-amber rounded text-[10px] font-bold uppercase">Pendente</span>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-foreground">{transaction.description}</p>
-                  <p className="text-xs text-muted-foreground">{transaction.category} {transaction.patientName && `• ${transaction.patientName}`}</p>
+                <div className="text-right">
+                  <p className={`font-black ${transaction.type === 'income' ? 'text-emerald' : 'text-destructive'}`}>
+                    {transaction.type === 'income' ? '+' : '-'} R$ {Number(transaction.amount).toLocaleString('pt-BR')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{new Date(transaction.date).toLocaleDateString('pt-BR')}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className={`font-black ${transaction.type === 'income' ? 'text-emerald' : 'text-destructive'}`}>
-                  {transaction.type === 'income' ? '+' : '-'} R$ {transaction.amount.toLocaleString('pt-BR')}
-                </p>
-                <p className="text-xs text-muted-foreground">{new Date(transaction.date).toLocaleDateString('pt-BR')}</p>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
+
+      <TransactionFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveTransaction}
+      />
     </div>
   );
 };
