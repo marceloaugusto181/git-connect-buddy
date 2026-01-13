@@ -1,32 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar as CalendarIcon, Clock, Plus, X, Save, CalendarPlus, Check, Video, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Plus, X, Save, CalendarPlus, Check, Video, MessageCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import StatCard from '../components/StatCard';
-import { patientList } from '../utils/mockData';
+import { usePatients } from '@/hooks/usePatients';
+import { useAppointments } from '@/hooks/useAppointments';
 import { createGoogleMeetEvent } from '../services/googleCalendarService';
 import { generateReminderMessage, openWhatsApp, simulateSending } from '../services/whatsappService';
 
-interface AgendaItem {
-  id: string;
-  patientName: string;
-  patientPhone?: string;
-  date: string;
-  time: string;
-  type: 'Presencial' | 'Online';
-  meetLink?: string;
-  status: 'Confirmado' | 'Pendente';
-  reminderSent?: boolean;
-}
-
 const Agenda: React.FC = () => {
+  const { patients } = usePatients();
+  const { appointments, isLoading, createAppointment, markReminderSent } = useAppointments();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
-
-  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([
-    { id: '1', patientName: 'Ana Silva', patientPhone: '(11) 99876-5432', date: new Date().toISOString().split('T')[0], time: '14:00', type: 'Online', meetLink: 'https://meet.google.com/abc-defg-hij', status: 'Confirmado', reminderSent: false },
-    { id: '2', patientName: 'Carlos Ferreira', patientPhone: '(21) 98888-7777', date: new Date().toISOString().split('T')[0], time: '16:00', type: 'Presencial', status: 'Pendente', reminderSent: false },
-    { id: '3', patientName: 'Beatriz Costa', patientPhone: '(31) 97777-6666', date: new Date(Date.now() + 86400000).toISOString().split('T')[0], time: '10:00', type: 'Online', status: 'Confirmado', reminderSent: true }
-  ]);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [newAppointment, setNewAppointment] = useState({ patientId: '', date: '', time: '', type: 'Presencial' as 'Presencial' | 'Online' });
 
@@ -60,50 +47,77 @@ const Agenda: React.FC = () => {
     setCurrentWeekStart(newStart);
   };
 
-  const handleSendReminder = async (item: AgendaItem) => {
-    if (!item.patientPhone) return;
-    setSendingReminderId(item.id);
-    const message = generateReminderMessage(item.patientName, item.date, item.time, item.meetLink);
+  const handleSendReminder = async (appointment: typeof appointments[0]) => {
+    if (!appointment.patient?.phone) return;
+    setSendingReminderId(appointment.id);
+    
+    const message = generateReminderMessage(
+      appointment.patient.name, 
+      appointment.date, 
+      appointment.time, 
+      appointment.meet_link || undefined
+    );
     await simulateSending();
-    openWhatsApp(item.patientPhone, message);
+    openWhatsApp(appointment.patient.phone, message);
+    
+    await markReminderSent.mutateAsync(appointment.id);
     setSendingReminderId(null);
-    setAgendaItems(prev => prev.map(i => i.id === item.id ? { ...i, reminderSent: true } : i));
   };
 
   const handleSaveAppointment = async () => {
     if (!newAppointment.patientId || !newAppointment.date || !newAppointment.time) return;
     
-    const patient = patientList.find(p => p.id === newAppointment.patientId);
+    const patient = patients.find(p => p.id === newAppointment.patientId);
     if (!patient) return;
 
-    let meetLink;
-    if (newAppointment.type === 'Online') {
-      const event = await createGoogleMeetEvent(patient.name, newAppointment.date, newAppointment.time);
-      meetLink = event.meetLink;
+    setIsSaving(true);
+    
+    try {
+      let meetLink: string | undefined;
+      if (newAppointment.type === 'Online') {
+        const event = await createGoogleMeetEvent(patient.name, newAppointment.date, newAppointment.time);
+        meetLink = event.meetLink;
+      }
+
+      await createAppointment.mutateAsync({
+        patient_id: newAppointment.patientId,
+        date: newAppointment.date,
+        time: newAppointment.time,
+        type: newAppointment.type,
+        status: 'confirmado',
+        meet_link: meetLink,
+      });
+
+      setIsModalOpen(false);
+      setNewAppointment({ patientId: '', date: '', time: '', type: 'Presencial' });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erro ao salvar agendamento:', error);
+    } finally {
+      setIsSaving(false);
     }
-
-    setAgendaItems(prev => [...prev, {
-      id: Date.now().toString(),
-      patientName: patient.name,
-      patientPhone: patient.phone,
-      date: newAppointment.date,
-      time: newAppointment.time,
-      type: newAppointment.type === 'Online' ? 'Online' : 'Presencial',
-      meetLink,
-      status: 'Confirmado',
-      reminderSent: false
-    }]);
-
-    setIsModalOpen(false);
-    setNewAppointment({ patientId: '', date: '', time: '', type: 'Presencial' });
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
   };
 
   const getAppointmentsForSlot = (date: Date, hour: number) => {
     const dateStr = date.toISOString().split('T')[0];
-    return agendaItems.filter(item => item.date === dateStr && parseInt(item.time.split(':')[0]) === hour);
+    return appointments.filter(item => item.date === dateStr && parseInt(item.time.split(':')[0]) === hour);
   };
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments.filter(a => a.date === todayStr);
+  const weekAppointments = appointments.filter(a => {
+    const aptDate = new Date(a.date);
+    return aptDate >= weekDays[0] && aptDate <= weekDays[weekDays.length - 1];
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-flow">
@@ -124,10 +138,10 @@ const Agenda: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard kpi={{ label: "Hoje", value: agendaItems.filter(a => a.date === new Date().toISOString().split('T')[0]).length.toString(), icon: CalendarIcon, change: "sessões", trend: "neutral", color: "bg-primary text-primary-foreground" }} />
-        <StatCard kpi={{ label: "Semana", value: "18", icon: Clock, change: "+3", trend: "up", color: "bg-emerald text-primary-foreground" }} />
-        <StatCard kpi={{ label: "Online", value: agendaItems.filter(a => a.type === 'Online').length.toString(), icon: Video, change: "sessões", trend: "neutral", color: "bg-purple text-primary-foreground" }} />
-        <StatCard kpi={{ label: "Confirmados", value: agendaItems.filter(a => a.status === 'Confirmado').length.toString(), icon: Check, change: "de " + agendaItems.length, trend: "up", color: "bg-amber text-foreground" }} />
+        <StatCard kpi={{ label: "Hoje", value: todayAppointments.length.toString(), icon: CalendarIcon, change: "sessões", trend: "neutral", color: "bg-primary text-primary-foreground" }} />
+        <StatCard kpi={{ label: "Semana", value: weekAppointments.length.toString(), icon: Clock, change: "agendamentos", trend: "up", color: "bg-emerald text-primary-foreground" }} />
+        <StatCard kpi={{ label: "Online", value: appointments.filter(a => a.type === 'Online').length.toString(), icon: Video, change: "sessões", trend: "neutral", color: "bg-purple text-primary-foreground" }} />
+        <StatCard kpi={{ label: "Confirmados", value: appointments.filter(a => a.status === 'confirmado').length.toString(), icon: Check, change: "de " + appointments.length, trend: "up", color: "bg-amber text-foreground" }} />
       </div>
 
       {/* Calendar Grid */}
@@ -155,13 +169,13 @@ const Agenda: React.FC = () => {
                 <div key={hour} className="grid grid-cols-7 border-b border-border/50">
                   <div className="p-3 text-xs font-bold text-muted-foreground text-center">{hour}:00</div>
                   {weekDays.map((day, i) => {
-                    const appointments = getAppointmentsForSlot(day, hour);
+                    const dayAppointments = getAppointmentsForSlot(day, hour);
                     return (
                       <div key={i} className={`p-1 border-l border-border/50 min-h-[60px] ${isToday(day) ? 'bg-primary/5' : ''}`}>
-                        {appointments.map(apt => (
+                        {dayAppointments.map(apt => (
                           <div key={apt.id} className={`text-xs p-2 rounded-lg mb-1 ${apt.type === 'Online' ? 'bg-purple/20 text-purple' : 'bg-primary/20 text-primary'}`}>
-                            <p className="font-bold truncate">{apt.patientName}</p>
-                            <p className="opacity-70">{apt.time}</p>
+                            <p className="font-bold truncate">{apt.patient?.name || 'Paciente'}</p>
+                            <p className="opacity-70">{apt.time.slice(0, 5)}</p>
                           </div>
                         ))}
                       </div>
@@ -178,26 +192,38 @@ const Agenda: React.FC = () => {
       <div className="bg-card rounded-[32px] border border-border p-6">
         <h3 className="text-lg font-black text-foreground mb-4">Atendimentos de Hoje</h3>
         <div className="space-y-3">
-          {agendaItems.filter(a => a.date === new Date().toISOString().split('T')[0]).map(item => (
+          {todayAppointments.map(item => (
             <div key={item.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-2xl">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${item.status === 'Confirmado' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>{item.time}</div>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${item.status === 'confirmado' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                  {item.time.slice(0, 5)}
+                </div>
                 <div>
-                  <p className="font-bold text-foreground">{item.patientName}</p>
+                  <p className="font-bold text-foreground">{item.patient?.name || 'Paciente'}</p>
                   <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${item.type === 'Online' ? 'bg-purple/20 text-purple' : 'bg-primary/20 text-primary'}`}>{item.type}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => handleSendReminder(item)} disabled={sendingReminderId === item.id || item.reminderSent} className={`p-2 rounded-lg transition ${item.reminderSent ? 'bg-emerald/20 text-emerald' : 'bg-muted hover:bg-primary/20 hover:text-primary'}`}>
-                  <MessageCircle className="w-4 h-4" />
+                <button 
+                  onClick={() => handleSendReminder(item)} 
+                  disabled={sendingReminderId === item.id || item.reminder_sent} 
+                  className={`p-2 rounded-lg transition ${item.reminder_sent ? 'bg-emerald/20 text-emerald' : 'bg-muted hover:bg-primary/20 hover:text-primary'}`}
+                >
+                  {sendingReminderId === item.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-4 h-4" />
+                  )}
                 </button>
-                {item.type === 'Online' && item.meetLink && (
-                  <a href={item.meetLink} target="_blank" rel="noopener noreferrer" className="p-2 bg-primary text-primary-foreground rounded-lg"><Video className="w-4 h-4" /></a>
+                {item.type === 'Online' && item.meet_link && (
+                  <a href={item.meet_link} target="_blank" rel="noopener noreferrer" className="p-2 bg-primary text-primary-foreground rounded-lg">
+                    <Video className="w-4 h-4" />
+                  </a>
                 )}
               </div>
             </div>
           ))}
-          {agendaItems.filter(a => a.date === new Date().toISOString().split('T')[0]).length === 0 && (
+          {todayAppointments.length === 0 && (
             <p className="text-center text-muted-foreground py-8">Nenhum atendimento para hoje</p>
           )}
         </div>
@@ -214,31 +240,60 @@ const Agenda: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase">Paciente</label>
-                <select value={newAppointment.patientId} onChange={e => setNewAppointment({ ...newAppointment, patientId: e.target.value })} className="w-full mt-1 p-3 bg-muted rounded-xl border-none font-medium">
+                <select 
+                  value={newAppointment.patientId} 
+                  onChange={e => setNewAppointment({ ...newAppointment, patientId: e.target.value })} 
+                  className="w-full mt-1 p-3 bg-muted rounded-xl border-none font-medium"
+                >
                   <option value="">Selecione...</option>
-                  {patientList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase">Data</label>
-                  <input type="date" value={newAppointment.date} onChange={e => setNewAppointment({ ...newAppointment, date: e.target.value })} className="w-full mt-1 p-3 bg-muted rounded-xl border-none font-medium" />
+                  <input 
+                    type="date" 
+                    value={newAppointment.date} 
+                    onChange={e => setNewAppointment({ ...newAppointment, date: e.target.value })} 
+                    className="w-full mt-1 p-3 bg-muted rounded-xl border-none font-medium" 
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase">Hora</label>
-                  <input type="time" value={newAppointment.time} onChange={e => setNewAppointment({ ...newAppointment, time: e.target.value })} className="w-full mt-1 p-3 bg-muted rounded-xl border-none font-medium" />
+                  <input 
+                    type="time" 
+                    value={newAppointment.time} 
+                    onChange={e => setNewAppointment({ ...newAppointment, time: e.target.value })} 
+                    className="w-full mt-1 p-3 bg-muted rounded-xl border-none font-medium" 
+                  />
                 </div>
               </div>
               <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase">Tipo</label>
                 <div className="grid grid-cols-2 gap-3 mt-1">
                   {(['Presencial', 'Online'] as const).map(type => (
-                    <button key={type} onClick={() => setNewAppointment({ ...newAppointment, type })} className={`p-3 rounded-xl font-bold text-sm transition ${newAppointment.type === type ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{type}</button>
+                    <button 
+                      key={type} 
+                      onClick={() => setNewAppointment({ ...newAppointment, type })} 
+                      className={`p-3 rounded-xl font-bold text-sm transition ${newAppointment.type === type ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      {type}
+                    </button>
                   ))}
                 </div>
               </div>
-              <button onClick={handleSaveAppointment} className="w-full bg-foreground text-background py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-foreground/90 transition active:scale-95">
-                <Save className="w-5 h-5" /> Salvar
+              <button 
+                onClick={handleSaveAppointment} 
+                disabled={isSaving || !newAppointment.patientId || !newAppointment.date || !newAppointment.time}
+                className="w-full bg-foreground text-background py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-foreground/90 transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Save className="w-5 h-5" />
+                )}
+                Salvar
               </button>
             </div>
           </div>
