@@ -220,6 +220,56 @@ export type Database = {
         }
         Relationships: []
       }
+      tasks: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          due_date: string
+          id: string
+          patient_id: string | null
+          priority: string
+          status: string
+          therapist_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          due_date: string
+          id?: string
+          patient_id?: string | null
+          priority?: string
+          status?: string
+          therapist_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          patient_id?: string | null
+          priority?: string
+          status?: string
+          therapist_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
