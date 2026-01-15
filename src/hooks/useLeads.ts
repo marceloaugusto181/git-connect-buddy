@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { usePatients } from '@/hooks/usePatients';
 
 export interface Lead {
   id: string;
@@ -41,6 +42,7 @@ export const useLeads = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { createPatient } = usePatients();
 
   const { data: leads = [], isLoading, error } = useQuery({
     queryKey: ['leads', user?.id],
@@ -154,10 +156,27 @@ export const useLeads = () => {
         .single();
       
       if (error) throw error;
-      return data;
+      return { lead: data as Lead, newStatus: status };
     },
-    onSuccess: () => {
+    onSuccess: async ({ lead, newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      
+      // Auto-convert lead to patient when moved to 'Convertido'
+      if (newStatus === 'Convertido') {
+        const newPatient = await createPatient({
+          name: lead.name,
+          phone: lead.phone,
+          email: lead.email,
+          notes: lead.notes ? `Origem: ${lead.source}\n${lead.notes}` : `Origem: ${lead.source}`,
+        });
+        
+        if (newPatient) {
+          toast({
+            title: 'Lead convertido!',
+            description: `${lead.name} foi adicionado como paciente.`,
+          });
+        }
+      }
     },
     onError: (error) => {
       toast({
