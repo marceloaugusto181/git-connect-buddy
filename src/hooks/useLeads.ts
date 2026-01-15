@@ -159,8 +159,6 @@ export const useLeads = () => {
       return { lead: data as Lead, newStatus: status };
     },
     onSuccess: async ({ lead, newStatus }) => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-      
       // Auto-convert lead to patient when moved to 'Convertido'
       if (newStatus === 'Convertido') {
         const newPatient = await createPatient({
@@ -171,12 +169,17 @@ export const useLeads = () => {
         });
         
         if (newPatient) {
+          // Delete the lead after successful conversion
+          await supabase.from('leads').delete().eq('id', lead.id);
+          
           toast({
             title: 'Lead convertido!',
-            description: `${lead.name} foi adicionado como paciente.`,
+            description: `${lead.name} foi adicionado como paciente e removido do funil.`,
           });
         }
       }
+      
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
     onError: (error) => {
       toast({
