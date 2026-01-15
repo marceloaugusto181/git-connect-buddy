@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { UserPlus, Search, X, Phone, MessageCircle, DollarSign, CheckCircle2, AlertCircle, Smile, Frown, Meh, Trash2, Edit, Loader2 } from 'lucide-react';
 import { usePatients, Patient } from '@/hooks/usePatients';
 import PatientFormModal from '@/components/PatientFormModal';
+import PatientClinicalRecords from '@/components/PatientClinicalRecords';
 import { generatePaymentMessage, openWhatsApp, generateReminderMessage } from '../services/whatsappService';
 
 const Patients: React.FC = () => {
@@ -306,10 +307,10 @@ const Patients: React.FC = () => {
               )}
 
               {activeTab === 'prontuario' && (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">Prontuário eletrônico em desenvolvimento.</p>
-                  <p className="text-sm text-muted-foreground mt-2">Em breve você poderá registrar evoluções e consultar o histórico clínico.</p>
-                </div>
+                <PatientClinicalRecords 
+                  patientId={selectedPatient.id} 
+                  patientName={selectedPatient.name} 
+                />
               )}
 
               {activeTab === 'financeiro' && (
