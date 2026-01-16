@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Smile, Meh, Frown, Trash2, Edit, Loader2, FileText, TrendingUp, TrendingDown, Minus, Link, Activity } from 'lucide-react';
+import { Plus, Smile, Meh, Frown, Trash2, Edit, Loader2, FileText, TrendingUp, TrendingDown, Minus, Link, Activity, Download } from 'lucide-react';
 import { useClinicalRecords, ClinicalRecordInsert, ClinicalRecord } from '@/hooks/useClinicalRecords';
 import { useAppointments } from '@/hooks/useAppointments';
 import ClinicalRecordFormModal from './ClinicalRecordFormModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { exportClinicalRecordsToPdf } from '@/utils/exportClinicalRecordsPdf';
+import { useToast } from '@/hooks/use-toast';
 
 interface PatientClinicalRecordsProps {
   patientId: string;
@@ -15,6 +17,7 @@ interface PatientClinicalRecordsProps {
 const PatientClinicalRecords: React.FC<PatientClinicalRecordsProps> = ({ patientId, patientName }) => {
   const { records, isLoading, createRecord, updateRecord, deleteRecord } = useClinicalRecords(patientId);
   const { appointments } = useAppointments();
+  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ClinicalRecord | null>(null);
 
@@ -69,6 +72,35 @@ const PatientClinicalRecords: React.FC<PatientClinicalRecordsProps> = ({ patient
     }
   };
 
+  const handleExportPdf = () => {
+    if (records.length === 0) {
+      toast({
+        title: 'Nenhum registro',
+        description: 'Não há registros para exportar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      exportClinicalRecordsToPdf({
+        patientName,
+        records,
+        averageScore,
+      });
+      toast({
+        title: 'PDF exportado',
+        description: 'O prontuário foi exportado com sucesso.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao exportar',
+        description: 'Ocorreu um erro ao gerar o PDF.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getSentimentIcon = (sentiment: string | null) => {
     switch (sentiment) {
       case 'positive': return <Smile className="w-5 h-5 text-emerald" />;
@@ -108,12 +140,22 @@ const PatientClinicalRecords: React.FC<PatientClinicalRecordsProps> = ({ patient
         <div>
           <p className="text-sm text-muted-foreground">{records.length} registro(s)</p>
         </div>
-        <button
-          onClick={() => { setEditingRecord(null); setIsModalOpen(true); }}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold text-sm hover:bg-primary/90 transition"
-        >
-          <Plus className="w-4 h-4" /> Nova Evolução
-        </button>
+        <div className="flex items-center gap-2">
+          {records.length > 0 && (
+            <button
+              onClick={handleExportPdf}
+              className="flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-xl font-bold text-sm hover:bg-muted/80 transition"
+            >
+              <Download className="w-4 h-4" /> Exportar PDF
+            </button>
+          )}
+          <button
+            onClick={() => { setEditingRecord(null); setIsModalOpen(true); }}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold text-sm hover:bg-primary/90 transition"
+          >
+            <Plus className="w-4 h-4" /> Nova Evolução
+          </button>
+        </div>
       </div>
 
       {/* Wellbeing Evolution Chart */}
