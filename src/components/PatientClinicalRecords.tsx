@@ -30,6 +30,25 @@ const PatientClinicalRecords: React.FC<PatientClinicalRecordsProps> = ({ patient
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [appointments, patientId, records]);
 
+  // Chart data - reverse to show chronological order (oldest first)
+  const chartData = useMemo(() => {
+    return [...records]
+      .reverse()
+      .filter(r => r.wellbeing_score !== null)
+      .map(record => ({
+        date: format(new Date(record.session_date), 'dd/MM'),
+        fullDate: format(new Date(record.session_date), "dd 'de' MMMM", { locale: ptBR }),
+        score: record.wellbeing_score,
+        sentiment: record.sentiment,
+      }));
+  }, [records]);
+
+  const averageScore = useMemo(() => {
+    const scores = records.filter(r => r.wellbeing_score !== null).map(r => r.wellbeing_score!);
+    if (scores.length === 0) return 0;
+    return Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
+  }, [records]);
+
   const handleSubmit = (data: ClinicalRecordInsert) => {
     if (editingRecord) {
       updateRecord.mutate({ id: editingRecord.id, ...data });
@@ -82,25 +101,6 @@ const PatientClinicalRecords: React.FC<PatientClinicalRecordsProps> = ({ patient
       </div>
     );
   }
-
-  // Chart data - reverse to show chronological order (oldest first)
-  const chartData = useMemo(() => {
-    return [...records]
-      .reverse()
-      .filter(r => r.wellbeing_score !== null)
-      .map(record => ({
-        date: format(new Date(record.session_date), 'dd/MM'),
-        fullDate: format(new Date(record.session_date), "dd 'de' MMMM", { locale: ptBR }),
-        score: record.wellbeing_score,
-        sentiment: record.sentiment,
-      }));
-  }, [records]);
-
-  const averageScore = useMemo(() => {
-    const scores = records.filter(r => r.wellbeing_score !== null).map(r => r.wellbeing_score!);
-    if (scores.length === 0) return 0;
-    return Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
-  }, [records]);
 
   return (
     <div className="space-y-6">
