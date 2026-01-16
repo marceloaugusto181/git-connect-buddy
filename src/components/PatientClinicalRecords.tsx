@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Plus, Smile, Meh, Frown, Trash2, Edit, Loader2, FileText, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Smile, Meh, Frown, Trash2, Edit, Loader2, FileText, TrendingUp, TrendingDown, Minus, Calendar, Link } from 'lucide-react';
 import { useClinicalRecords, ClinicalRecordInsert, ClinicalRecord } from '@/hooks/useClinicalRecords';
+import { useAppointments } from '@/hooks/useAppointments';
 import ClinicalRecordFormModal from './ClinicalRecordFormModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -12,8 +13,21 @@ interface PatientClinicalRecordsProps {
 
 const PatientClinicalRecords: React.FC<PatientClinicalRecordsProps> = ({ patientId, patientName }) => {
   const { records, isLoading, createRecord, updateRecord, deleteRecord } = useClinicalRecords(patientId);
+  const { appointments } = useAppointments();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ClinicalRecord | null>(null);
+
+  // Filter appointments for this patient that are confirmed and don't have a clinical record yet
+  const availableAppointments = useMemo(() => {
+    const linkedAppointmentIds = new Set(records.map(r => r.appointment_id).filter(Boolean));
+    return appointments
+      .filter(apt => 
+        apt.patient_id === patientId && 
+        (apt.status === 'confirmado' || apt.status === 'realizado') &&
+        !linkedAppointmentIds.has(apt.id)
+      )
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [appointments, patientId, records]);
 
   const handleSubmit = (data: ClinicalRecordInsert) => {
     if (editingRecord) {
@@ -102,9 +116,17 @@ const PatientClinicalRecords: React.FC<PatientClinicalRecordsProps> = ({ patient
                     {getTrendIcon(index)}
                   </div>
                   <div>
-                    <p className="font-bold text-foreground">
-                      {format(new Date(record.session_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-foreground">
+                        {format(new Date(record.session_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      </p>
+                      {record.appointment_id && (
+                        <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                          <Link className="w-3 h-3" />
+                          Vinculado
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Registrado em {format(new Date(record.created_at), "dd/MM/yyyy 'às' HH:mm")}
                     </p>
@@ -157,6 +179,7 @@ const PatientClinicalRecords: React.FC<PatientClinicalRecordsProps> = ({ patient
         onSubmit={handleSubmit}
         patientId={patientId}
         record={editingRecord}
+        availableAppointments={availableAppointments}
       />
     </div>
   );

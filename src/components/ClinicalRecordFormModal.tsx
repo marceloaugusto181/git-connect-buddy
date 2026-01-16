@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, Smile, Meh, Frown, TrendingUp, TrendingDown } from 'lucide-react';
+import { X, Smile, Meh, Frown, Calendar } from 'lucide-react';
 import { ClinicalRecordInsert, ClinicalRecord } from '@/hooks/useClinicalRecords';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+interface Appointment {
+  id: string;
+  date: string;
+  time: string;
+  status: string | null;
+}
 
 interface ClinicalRecordFormModalProps {
   isOpen: boolean;
@@ -8,6 +17,7 @@ interface ClinicalRecordFormModalProps {
   onSubmit: (data: ClinicalRecordInsert) => void;
   patientId: string;
   record?: ClinicalRecord | null;
+  availableAppointments?: Appointment[];
 }
 
 const ClinicalRecordFormModal: React.FC<ClinicalRecordFormModalProps> = ({
@@ -16,9 +26,11 @@ const ClinicalRecordFormModal: React.FC<ClinicalRecordFormModalProps> = ({
   onSubmit,
   patientId,
   record,
+  availableAppointments = [],
 }) => {
   const [formData, setFormData] = useState({
     session_date: new Date().toISOString().split('T')[0],
+    appointment_id: null as string | null,
     content: '',
     observations: '',
     goals: '',
@@ -30,6 +42,7 @@ const ClinicalRecordFormModal: React.FC<ClinicalRecordFormModalProps> = ({
     if (record) {
       setFormData({
         session_date: record.session_date,
+        appointment_id: record.appointment_id,
         content: record.content || '',
         observations: record.observations || '',
         goals: record.goals || '',
@@ -39,6 +52,7 @@ const ClinicalRecordFormModal: React.FC<ClinicalRecordFormModalProps> = ({
     } else {
       setFormData({
         session_date: new Date().toISOString().split('T')[0],
+        appointment_id: null,
         content: '',
         observations: '',
         goals: '',
@@ -48,12 +62,32 @@ const ClinicalRecordFormModal: React.FC<ClinicalRecordFormModalProps> = ({
     }
   }, [record, isOpen]);
 
+  const handleAppointmentSelect = (appointmentId: string) => {
+    if (appointmentId === '') {
+      setFormData({ ...formData, appointment_id: null });
+    } else {
+      const appointment = availableAppointments.find(a => a.id === appointmentId);
+      if (appointment) {
+        setFormData({
+          ...formData,
+          appointment_id: appointmentId,
+          session_date: appointment.date,
+        });
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
       patient_id: patientId,
-      ...formData,
+      appointment_id: formData.appointment_id,
+      session_date: formData.session_date,
+      content: formData.content || null,
+      observations: formData.observations || null,
+      goals: formData.goals || null,
       wellbeing_score: formData.wellbeing_score,
+      sentiment: formData.sentiment,
     });
     onClose();
   };
@@ -84,6 +118,30 @@ const ClinicalRecordFormModal: React.FC<ClinicalRecordFormModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-120px)] custom-scrollbar">
+          {availableAppointments.length > 0 && !record && (
+            <div>
+              <label className="block text-sm font-bold text-foreground mb-2">
+                <Calendar className="w-4 h-4 inline mr-2" />
+                Vincular a Agendamento
+              </label>
+              <select
+                value={formData.appointment_id || ''}
+                onChange={e => handleAppointmentSelect(e.target.value)}
+                className="w-full bg-muted border-0 rounded-xl px-4 py-3 text-foreground font-medium focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Sem vínculo com agendamento</option>
+                {availableAppointments.map(apt => (
+                  <option key={apt.id} value={apt.id}>
+                    {format(new Date(apt.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} às {apt.time.slice(0, 5)}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Vincule este registro a uma consulta confirmada
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-bold text-foreground mb-2">Data da Sessão</label>
             <input
