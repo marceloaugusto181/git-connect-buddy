@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { DollarSign, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, Download, Target, Loader2 } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, Download, Target, Loader2, BarChart3, List } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import TransactionFormModal from '../components/TransactionFormModal';
+import MonthlyFinancialReport from '../components/MonthlyFinancialReport';
 import { useTransactions, TransactionInsert } from '@/hooks/useTransactions';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -9,6 +10,7 @@ const Financial: React.FC = () => {
   const { transactions, isLoading, summary, createTransaction } = useTransactions();
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'report'>('overview');
 
   const pieData = useMemo(() => [
     { name: 'Recebido', value: summary.confirmedIncome, color: '#6366f1' },
@@ -77,6 +79,29 @@ const Financial: React.FC = () => {
           <p className="text-muted-foreground font-medium">Controle o faturamento do seu consultório</p>
         </div>
         <div className="flex gap-3">
+          {/* Tab Switcher */}
+          <div className="flex bg-muted rounded-xl p-1">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition ${
+                activeTab === 'overview' 
+                  ? 'bg-background text-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <List className="w-4 h-4" /> Visão Geral
+            </button>
+            <button
+              onClick={() => setActiveTab('report')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition ${
+                activeTab === 'report' 
+                  ? 'bg-background text-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" /> Relatório
+            </button>
+          </div>
           <button className="flex items-center gap-2 bg-card border border-border text-muted-foreground px-5 py-3 rounded-xl font-bold text-sm hover:border-foreground hover:text-foreground transition">
             <Download className="w-4 h-4" /> Exportar
           </button>
@@ -88,6 +113,11 @@ const Financial: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {activeTab === 'report' ? (
+        <MonthlyFinancialReport transactions={transactions} />
+      ) : (
+        <>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -237,6 +267,8 @@ const Financial: React.FC = () => {
           )}
         </div>
       </div>
+      </>
+      )}
 
       <TransactionFormModal
         isOpen={isModalOpen}
