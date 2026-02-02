@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar as CalendarIcon, Clock, Plus, X, Save, CalendarPlus, Check, Video, MessageCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Plus, X, Save, CalendarPlus, Check, Video, MessageCircle, ChevronLeft, ChevronRight, Loader2, CheckCircle } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { usePatients } from '@/hooks/usePatients';
 import { useAppointments } from '@/hooks/useAppointments';
@@ -8,11 +8,12 @@ import { generateReminderMessage, openWhatsApp, simulateSending } from '../servi
 
 const Agenda: React.FC = () => {
   const { patients } = usePatients();
-  const { appointments, isLoading, createAppointment, markReminderSent } = useAppointments();
+  const { appointments, isLoading, createAppointment, markReminderSent, markAsCompleted } = useAppointments();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const [newAppointment, setNewAppointment] = useState({ patientId: '', date: '', time: '', type: 'Presencial' as 'Presencial' | 'Online' });
@@ -192,18 +193,41 @@ const Agenda: React.FC = () => {
       <div className="bg-card rounded-[32px] border border-border p-6">
         <h3 className="text-lg font-black text-foreground mb-4">Atendimentos de Hoje</h3>
         <div className="space-y-3">
-          {todayAppointments.map(item => (
+        {todayAppointments.map(item => (
             <div key={item.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-2xl">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${item.status === 'confirmado' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${item.status === 'realizada' ? 'bg-emerald/20 text-emerald' : item.status === 'confirmado' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
                   {item.time.slice(0, 5)}
                 </div>
                 <div>
                   <p className="font-bold text-foreground">{item.patient?.name || 'Paciente'}</p>
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${item.type === 'Online' ? 'bg-purple/20 text-purple' : 'bg-primary/20 text-primary'}`}>{item.type}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${item.type === 'Online' ? 'bg-purple/20 text-purple' : 'bg-primary/20 text-primary'}`}>{item.type}</span>
+                    {item.status === 'realizada' && (
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald/20 text-emerald">Realizada</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {item.status !== 'realizada' && (
+                  <button 
+                    onClick={async () => {
+                      setCompletingId(item.id);
+                      await markAsCompleted.mutateAsync(item);
+                      setCompletingId(null);
+                    }}
+                    disabled={completingId === item.id}
+                    className="p-2 bg-emerald/20 text-emerald rounded-lg hover:bg-emerald/30 transition"
+                    title="Marcar como realizada"
+                  >
+                    {completingId === item.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
                 <button 
                   onClick={() => handleSendReminder(item)} 
                   disabled={sendingReminderId === item.id || item.reminder_sent} 

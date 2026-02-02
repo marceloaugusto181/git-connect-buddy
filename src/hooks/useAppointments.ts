@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-
+import { toast } from 'sonner';
 export interface Appointment {
   id: string;
   patient_id: string;
@@ -144,6 +144,65 @@ export const useAppointments = () => {
     },
   });
 
+  // Mark appointment as completed and auto-create income transaction
+  const markAsCompleted = useMutation({
+    mutationFn: async (appointment: Appointment) => {
+      if (!user?.id) throw new Error('Usuário não autenticado');
+
+      // Update appointment status
+      const { error: updateError } = await supabase
+        .from('appointments')
+        .update({ status: 'realizada' })
+        .eq('id', appointment.id);
+
+      if (updateError) throw updateError;
+
+      // Get patient's session value for the transaction amount
+      let sessionValue = 0;
+      if (appointment.patient_id) {
+        const { data: patientData } = await supabase
+          .from('patients')
+          .select('session_value, name')
+          .eq('id', appointment.patient_id)
+          .single();
+        
+        sessionValue = patientData?.session_value || 0;
+      }
+
+      // Only create transaction if there's a session value
+      if (sessionValue > 0) {
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert({
+            therapist_id: user.id,
+            patient_id: appointment.patient_id,
+            description: `Sessão - ${appointment.patient?.name || 'Paciente'}`,
+            category: 'Sessão',
+            amount: sessionValue,
+            type: 'income',
+            status: 'confirmado',
+            date: appointment.date,
+          });
+
+        if (transactionError) throw transactionError;
+        
+        toast.success(`Transação de R$ ${sessionValue.toFixed(2)} criada automaticamente`);
+      } else {
+        toast.info('Sessão marcada como realizada (sem valor de sessão definido)');
+      }
+
+      return appointment.id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', user?.id] });
+    },
+    onError: (error) => {
+      console.error('Erro ao marcar consulta como realizada:', error);
+      toast.error('Erro ao marcar consulta como realizada');
+    },
+  });
+
   return {
     appointments,
     isLoading,
@@ -153,5 +212,6 @@ export const useAppointments = () => {
     updateAppointment,
     deleteAppointment,
     markReminderSent,
+    markAsCompleted,
   };
 };
