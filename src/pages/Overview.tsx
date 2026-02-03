@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Sparkles, PenLine, Zap, BrainCircuit, ArrowRight, Lightbulb, TrendingUp, DollarSign, X, Video, MessageCircle, Clock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Users, Calendar, Sparkles, PenLine, Zap, BrainCircuit, ArrowRight, Lightbulb, TrendingUp, DollarSign, X, Video, MessageCircle, Clock, Loader2 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import BirthdayAlert from '../components/BirthdayAlert';
 import { Page, AISuggestion } from '../types';
 import { getDashboardInsights, getProactiveSuggestions } from '../services/geminiService';
 import { usePatients } from '@/hooks/usePatients';
+import { useAppointments } from '@/hooks/useAppointments';
+import { useTransactions } from '@/hooks/useTransactions';
+import { format, isToday, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface OverviewProps {
   onNavigate: (page: Page) => void;
@@ -14,13 +18,55 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   const [aiInsights, setAiInsights] = useState<string>("Analisando sua clínica...");
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [isLoadingAi, setIsLoadingAi] = useState(true);
-  const { patients } = usePatients();
   const [isAiOpen, setIsAiOpen] = useState(false);
+
+  const { patients, loading: loadingPatients } = usePatients();
+  const { appointments, isLoading: loadingAppointments } = useAppointments();
+  const { transactions, summary, isLoading: loadingTransactions } = useTransactions();
+
+  // Calculate real KPIs
+  const activePatients = useMemo(() => 
+    patients.filter(p => p.status?.toLowerCase() === 'ativo').length, 
+    [patients]
+  );
+
+  const pendingPayments = useMemo(() => 
+    patients.filter(p => p.payment_status === 'Pendente' || p.payment_status === 'Atrasado').length,
+    [patients]
+  );
+
+  const currentMonthAppointments = useMemo(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    return appointments.filter(a => a.date.startsWith(currentMonth) && a.status === 'realizada').length;
+  }, [appointments]);
+
+  // Today's appointments
+  const todayAppointments = useMemo(() => {
+    return appointments
+      .filter(a => isToday(parseISO(a.date)) && a.status !== 'cancelada')
+      .sort((a, b) => a.time.localeCompare(b.time))
+      .slice(0, 5);
+  }, [appointments]);
+
+  // Retention rate (patients with >1 completed session in last 3 months)
+  const retentionRate = useMemo(() => {
+    if (activePatients === 0) return 0;
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    
+    const patientsWithSessions = new Set(
+      appointments
+        .filter(a => a.status === 'realizada' && parseISO(a.date) >= threeMonthsAgo)
+        .map(a => a.patient_id)
+    );
+    
+    return Math.round((patientsWithSessions.size / activePatients) * 100) || 0;
+  }, [appointments, activePatients]);
 
   useEffect(() => {
     const fetchAiData = async () => {
       setIsLoadingAi(true);
-      const dashboardContext = "24 pacientes ativos, 86 sessões no mês, faturamento R$ 12.450, 5 sessões hoje.";
+      const dashboardContext = `${activePatients} pacientes ativos, ${currentMonthAppointments} sessões no mês, faturamento R$ ${summary.totalIncome.toFixed(2)}, ${todayAppointments.length} sessões hoje.`;
       const [insights, proactive] = await Promise.all([
         getDashboardInsights(dashboardContext),
         getProactiveSuggestions(dashboardContext)
@@ -29,14 +75,13 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
       setSuggestions(proactive);
       setIsLoadingAi(false);
     };
-    fetchAiData();
-  }, []);
+    
+    if (!loadingPatients && !loadingAppointments && !loadingTransactions) {
+      fetchAiData();
+    }
+  }, [activePatients, currentMonthAppointments, summary.totalIncome, todayAppointments.length, loadingPatients, loadingAppointments, loadingTransactions]);
 
-  const appointments = [
-    { id: 1, name: "Ana Silva", time: "14:00", type: "Online", status: "Confirmado" },
-    { id: 2, name: "Carlos Ferreira", time: "15:30", type: "Presencial", status: "Confirmado" },
-    { id: 3, name: "Beatriz Costa", time: "17:00", type: "Online", status: "Pendente" }
-  ];
+  const isLoading = loadingPatients || loadingAppointments || loadingTransactions;
 
   return (
     <div className="space-y-8 pb-12 animate-flow relative">
@@ -72,10 +117,10 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard kpi={{ label: "Ativos", value: "24", icon: Users, change: "+12%", trend: "up", color: "bg-primary text-primary-foreground", description: "Pacientes em acompanhamento" }} />
-        <StatCard kpi={{ label: "Sessões/Mês", value: "86", icon: Calendar, change: "+5%", trend: "up", color: "bg-primary/80 text-primary-foreground", description: "Total de sessões no mês" }} />
-        <StatCard kpi={{ label: "Pendências", value: "03", icon: Clock, change: "-2", trend: "up", color: "bg-amber text-foreground", description: "Pagamentos pendentes" }} />
-        <StatCard kpi={{ label: "Retenção", value: "94%", icon: TrendingUp, change: "+2%", trend: "up", color: "bg-emerald text-primary-foreground", description: "Taxa de retorno" }} />
+        <StatCard kpi={{ label: "Ativos", value: isLoading ? '...' : String(activePatients), icon: Users, change: "", trend: "neutral", color: "bg-primary text-primary-foreground", description: "Pacientes em acompanhamento" }} />
+        <StatCard kpi={{ label: "Sessões/Mês", value: isLoading ? '...' : String(currentMonthAppointments), icon: Calendar, change: "", trend: "neutral", color: "bg-primary/80 text-primary-foreground", description: "Sessões realizadas no mês" }} />
+        <StatCard kpi={{ label: "Pendências", value: isLoading ? '...' : String(pendingPayments).padStart(2, '0'), icon: Clock, change: "", trend: pendingPayments > 0 ? "down" : "up", color: "bg-amber text-foreground", description: "Pagamentos pendentes" }} />
+        <StatCard kpi={{ label: "Retenção", value: isLoading ? '...' : `${retentionRate}%`, icon: TrendingUp, change: "", trend: retentionRate >= 80 ? "up" : "down", color: "bg-emerald text-primary-foreground", description: "Taxa de retorno" }} />
 
         {/* Appointments Section */}
         <div className="lg:col-span-3 bg-card p-8 rounded-[40px] card-premium border border-border/50 flex flex-col">
@@ -90,20 +135,29 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
           </div>
 
           <div className="space-y-4">
-            {appointments.map((apt) => (
+            {todayAppointments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p className="font-medium">Nenhuma sessão agendada para hoje</p>
+              </div>
+            ) : todayAppointments.map((apt) => (
               <div key={apt.id} className="flex items-center justify-between p-5 bg-muted/50 rounded-[28px] border border-transparent hover:border-primary/20 hover:bg-card transition-all group">
                 <div className="flex items-center gap-5">
-                  <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-black ${apt.status === 'Confirmado' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                    <span className="text-lg">{apt.time}</span>
+                  <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-black ${apt.status === 'confirmado' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                    <span className="text-lg">{apt.time.slice(0, 5)}</span>
                   </div>
                   <div>
-                    <p className="font-bold text-foreground text-lg">{apt.name}</p>
+                    <p className="font-bold text-foreground text-lg">{apt.patient?.name || 'Paciente'}</p>
                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${apt.type === 'Online' ? 'bg-purple/20 text-purple' : 'bg-primary/20 text-primary'}`}>{apt.type}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button className="p-3 bg-card text-muted-foreground hover:text-primary rounded-xl shadow-sm border border-border transition-all opacity-0 group-hover:opacity-100"><MessageCircle className="w-5 h-5" /></button>
-                  {apt.type === 'Online' && <button className="p-3 bg-primary text-primary-foreground rounded-xl shadow-md transition-all opacity-0 group-hover:opacity-100"><Video className="w-5 h-5" /></button>}
+                  {apt.type === 'Online' && apt.meet_link && (
+                    <a href={apt.meet_link} target="_blank" rel="noopener noreferrer" className="p-3 bg-primary text-primary-foreground rounded-xl shadow-md transition-all opacity-0 group-hover:opacity-100">
+                      <Video className="w-5 h-5" />
+                    </a>
+                  )}
                   <button className="p-3 bg-card text-muted-foreground hover:text-foreground rounded-xl shadow-sm border border-border transition-all"><PenLine className="w-5 h-5" /></button>
                 </div>
               </div>
@@ -118,12 +172,22 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
             <div>
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Finanças</h4>
-              <p className="text-4xl font-extrabold tracking-tighter">R$ 12.450</p>
-              <p className="text-primary/80 mt-1 font-bold">Faturamento Junho</p>
+              <p className="text-4xl font-extrabold tracking-tighter">
+                {isLoading ? '...' : `R$ ${(summary.totalIncome / 1000).toFixed(1)}k`}
+              </p>
+              <p className="text-primary/80 mt-1 font-bold">
+                Faturamento {format(new Date(), 'MMMM', { locale: ptBR }).charAt(0).toUpperCase() + format(new Date(), 'MMMM', { locale: ptBR }).slice(1)}
+              </p>
             </div>
             <div className="pt-4 border-t border-background/10 flex items-center justify-between">
-              <div><span className="text-[9px] font-black text-background/50 uppercase">Recebido</span><br /><span className="font-bold">R$ 10.2k</span></div>
-              <div className="text-right"><span className="text-[9px] font-black text-background/50 uppercase">Pendente</span><br /><span className="font-bold text-amber">R$ 2.2k</span></div>
+              <div>
+                <span className="text-[9px] font-black text-background/50 uppercase">Recebido</span><br />
+                <span className="font-bold">R$ {isLoading ? '...' : `${(summary.confirmedIncome / 1000).toFixed(1)}k`}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[9px] font-black text-background/50 uppercase">Pendente</span><br />
+                <span className="font-bold text-amber">R$ {isLoading ? '...' : `${(summary.pendingIncome / 1000).toFixed(1)}k`}</span>
+              </div>
             </div>
           </div>
 
