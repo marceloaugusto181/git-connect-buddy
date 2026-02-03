@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { KPI } from '../types';
 import { ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
 
@@ -6,9 +6,10 @@ interface StatCardProps {
   kpi: KPI;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ kpi }) => {
+const StatCard = forwardRef<HTMLDivElement, StatCardProps>(({ kpi }, ref) => {
   return (
     <div
+      ref={ref}
       className="group bg-card p-7 rounded-[32px] border border-border/60 hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 relative overflow-hidden cursor-default shadow-sm min-h-[220px] flex flex-col justify-between"
       title={kpi.description}
     >
@@ -49,6 +50,8 @@ const StatCard: React.FC<StatCardProps> = ({ kpi }) => {
       }`}></div>
     </div>
   );
-};
+});
+
+StatCard.displayName = 'StatCard';
 
 export default StatCard;
