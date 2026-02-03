@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Calendar, Sparkles, PenLine, Zap, BrainCircuit, ArrowRight, Lightbulb, TrendingUp, DollarSign, X, Video, MessageCircle, Clock } from 'lucide-react';
 import StatCard from '../components/StatCard';
+import BirthdayAlert from '../components/BirthdayAlert';
 import { Page, AISuggestion } from '../types';
 import { getDashboardInsights, getProactiveSuggestions } from '../services/geminiService';
+import { usePatients } from '@/hooks/usePatients';
 
 interface OverviewProps {
   onNavigate: (page: Page) => void;
@@ -12,6 +14,7 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   const [aiInsights, setAiInsights] = useState<string>("Analisando sua clínica...");
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [isLoadingAi, setIsLoadingAi] = useState(true);
+  const { patients } = usePatients();
   const [isAiOpen, setIsAiOpen] = useState(false);
 
   useEffect(() => {
@@ -109,9 +112,9 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
           <button onClick={() => onNavigate('agenda')} className="mt-6 w-full py-4 border-2 border-dashed border-border rounded-[28px] text-muted-foreground font-bold text-xs uppercase tracking-widest hover:border-primary/30 hover:text-primary transition-all">Ver agenda completa</button>
         </div>
 
-        {/* Finance Widget */}
+        {/* Finance Widget + Birthday Alert */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-foreground rounded-[40px] p-8 text-background shadow-2xl relative overflow-hidden h-1/2 min-h-[220px] flex flex-col justify-between">
+          <div className="bg-foreground rounded-[40px] p-8 text-background shadow-2xl relative overflow-hidden min-h-[220px] flex flex-col justify-between">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
             <div>
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Finanças</h4>
@@ -124,7 +127,10 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
             </div>
           </div>
 
-          <div className="bg-primary rounded-[40px] p-8 text-primary-foreground shadow-2xl relative overflow-hidden h-1/2 min-h-[220px] flex flex-col justify-between">
+          {/* Birthday Alert */}
+          <BirthdayAlert patients={patients} />
+
+          <div className="bg-primary rounded-[40px] p-8 text-primary-foreground shadow-2xl relative overflow-hidden min-h-[220px] flex flex-col justify-between">
             <Zap className="w-10 h-10 text-primary-foreground/50 mb-2" />
             <div>
               <h4 className="text-xl font-extrabold mb-2">Sugestão Proativa</h4>
