@@ -1,16 +1,34 @@
-import React, { useState, useMemo } from 'react';
-import { DollarSign, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, Download, Target, Loader2, BarChart3, List } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { DollarSign, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, Download, Target, Loader2, BarChart3, List, Receipt } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import StatCard from '../components/StatCard';
 import TransactionFormModal from '../components/TransactionFormModal';
 import MonthlyFinancialReport from '../components/MonthlyFinancialReport';
+import PaymentModal from '../components/PaymentModal';
 import { useTransactions, TransactionInsert } from '@/hooks/useTransactions';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 const Financial: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const { transactions, isLoading, summary, createTransaction } = useTransactions();
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'report'>('overview');
+
+  // Handle payment success/cancel from URL params
+  useEffect(() => {
+    if (searchParams.get('payment') === 'success') {
+      toast.success('Pagamento realizado com sucesso!');
+    } else if (searchParams.get('payment') === 'canceled') {
+      toast.info('Pagamento cancelado');
+    } else if (searchParams.get('subscription') === 'success') {
+      toast.success('Assinatura criada com sucesso!');
+    } else if (searchParams.get('subscription') === 'canceled') {
+      toast.info('Assinatura cancelada');
+    }
+  }, [searchParams]);
 
   const pieData = useMemo(() => [
     { name: 'Recebido', value: summary.confirmedIncome, color: '#6366f1' },
@@ -102,6 +120,12 @@ const Financial: React.FC = () => {
               <BarChart3 className="w-4 h-4" /> Relatório
             </button>
           </div>
+          <button 
+            onClick={() => setIsPaymentModalOpen(true)}
+            className="flex items-center gap-2 bg-card border border-border text-foreground px-5 py-3 rounded-xl font-bold text-sm hover:border-primary hover:bg-primary/5 transition"
+          >
+            <Receipt className="w-4 h-4" /> Cobrar Paciente
+          </button>
           <button className="flex items-center gap-2 bg-card border border-border text-muted-foreground px-5 py-3 rounded-xl font-bold text-sm hover:border-foreground hover:text-foreground transition">
             <Download className="w-4 h-4" /> Exportar
           </button>
@@ -274,6 +298,11 @@ const Financial: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveTransaction}
+      />
+
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
       />
     </div>
   );
