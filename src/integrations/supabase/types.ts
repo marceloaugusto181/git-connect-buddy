@@ -130,6 +130,56 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          category: string
+          content: string | null
+          created_at: string
+          generated_at: string | null
+          id: string
+          patient_id: string | null
+          status: string
+          therapist_id: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content?: string | null
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          patient_id?: string | null
+          status?: string
+          therapist_id: string
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string | null
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          patient_id?: string | null
+          status?: string
+          therapist_id?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           created_at: string
