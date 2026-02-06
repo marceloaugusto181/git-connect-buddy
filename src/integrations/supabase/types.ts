@@ -262,6 +262,54 @@ export type Database = {
         }
         Relationships: []
       }
+      resources: {
+        Row: {
+          auto_send: boolean | null
+          category: string
+          cloud_url: string | null
+          created_at: string
+          file_size: string | null
+          file_url: string | null
+          id: string
+          shared_count: number | null
+          therapist_id: string
+          title: string
+          trigger_event: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          auto_send?: boolean | null
+          category?: string
+          cloud_url?: string | null
+          created_at?: string
+          file_size?: string | null
+          file_url?: string | null
+          id?: string
+          shared_count?: number | null
+          therapist_id: string
+          title: string
+          trigger_event?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_send?: boolean | null
+          category?: string
+          cloud_url?: string | null
+          created_at?: string
+          file_size?: string | null
+          file_url?: string | null
+          id?: string
+          shared_count?: number | null
+          therapist_id?: string
+          title?: string
+          trigger_event?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           category: string
