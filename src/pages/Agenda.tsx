@@ -94,7 +94,7 @@ const Agenda: React.FC = () => {
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
-      console.error('Erro ao salvar agendamento:', error);
+      if (import.meta.env.DEV) console.error('Erro ao salvar agendamento:', error);
     } finally {
       setIsSaving(false);
     }

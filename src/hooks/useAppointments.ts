@@ -198,7 +198,7 @@ export const useAppointments = () => {
       queryClient.invalidateQueries({ queryKey: ['transactions', user?.id] });
     },
     onError: (error) => {
-      console.error('Erro ao marcar consulta como realizada:', error);
+      if (import.meta.env.DEV) console.error('Erro ao marcar consulta como realizada:', error);
       toast.error('Erro ao marcar consulta como realizada');
     },
   });

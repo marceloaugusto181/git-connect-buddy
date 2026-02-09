@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { z } from "https://esm.sh/zod@3.25.76";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,14 @@ const logStep = (step: string, details?: unknown) => {
 const SUBSCRIPTION_PRICES = {
   monthly: "price_1Sx3a5DP2JlTk2Et44emMCVn", // R$ 600/mês - Plano Mensal
 };
+
+const ALLOWED_PRICE_IDS = new Set(Object.values(SUBSCRIPTION_PRICES));
+
+const SubscriptionSchema = z.object({
+  patientName: z.string().max(200).optional().default(''),
+  patientEmail: z.string().email().max(255).optional().nullable(),
+  priceId: z.string().max(100).optional().nullable(),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -43,9 +52,19 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { patientName, patientEmail, priceId } = await req.json();
-    const selectedPriceId = priceId || SUBSCRIPTION_PRICES.monthly;
-    logStep("Request body parsed", { patientName, patientEmail, priceId: selectedPriceId });
+    const rawBody = await req.json();
+    const parsed = SubscriptionSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid input", details: parsed.error.flatten() }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    const { patientName, patientEmail, priceId } = parsed.data;
+
+    // Validate priceId against allowed values
+    const selectedPriceId = priceId && ALLOWED_PRICE_IDS.has(priceId) ? priceId : SUBSCRIPTION_PRICES.monthly;
+    logStep("Request body validated", { patientName, patientEmail, priceId: selectedPriceId });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
