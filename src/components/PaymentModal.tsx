@@ -64,7 +64,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
         onClose();
       }
     } catch (error: unknown) {
-      console.error('Erro ao criar pagamento:', error);
+      if (import.meta.env.DEV) console.error('Erro ao criar pagamento:', error);
       const message = error instanceof Error ? error.message : 'Erro desconhecido';
       toast.error(`Erro ao gerar link de pagamento: ${message}`);
     } finally {
@@ -91,7 +91,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) => {
         toast.success('Portal de gerenciamento aberto!');
       }
     } catch (error: unknown) {
-      console.error('Erro ao abrir portal:', error);
+      if (import.meta.env.DEV) console.error('Erro ao abrir portal:', error);
       const message = error instanceof Error ? error.message : 'Erro desconhecido';
       toast.error(`Erro ao abrir portal: ${message}`);
     } finally {

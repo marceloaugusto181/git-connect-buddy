@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { z } from "https://esm.sh/zod@3.25.76";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,10 @@ const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CUSTOMER-PORTAL] ${step}${detailsStr}`);
 };
+
+const PortalSchema = z.object({
+  customerEmail: z.string().email().max(255).optional().nullable(),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -41,7 +46,15 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { customerEmail } = await req.json();
+    const rawBody = await req.json();
+    const parsed = PortalSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid input", details: parsed.error.flatten() }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    const { customerEmail } = parsed.data;
     const emailToUse = customerEmail || user.email;
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });

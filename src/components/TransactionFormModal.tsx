@@ -46,7 +46,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({ isOpen, onC
         patient_id: null,
       });
     } catch (error) {
-      console.error('Erro ao salvar transação:', error);
+      if (import.meta.env.DEV) console.error('Erro ao salvar transação:', error);
     } finally {
       setIsSaving(false);
     }

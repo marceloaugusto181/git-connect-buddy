@@ -83,7 +83,7 @@ const ResourceFormModal: React.FC<ResourceFormModalProps> = ({ open, onOpenChang
       setCloudUrl('');
       onOpenChange(false);
     } catch (error) {
-      console.error('Error creating resource:', error);
+      if (import.meta.env.DEV) console.error('Error creating resource:', error);
     } finally {
       setIsUploading(false);
     }

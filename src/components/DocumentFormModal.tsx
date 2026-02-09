@@ -187,7 +187,7 @@ const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
       
       onOpenChange(false);
     } catch (error) {
-      console.error('Error saving document:', error);
+      if (import.meta.env.DEV) console.error('Error saving document:', error);
     }
   };
 
