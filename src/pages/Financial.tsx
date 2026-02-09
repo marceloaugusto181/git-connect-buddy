@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { DollarSign, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, Download, Target, Loader2, BarChart3, List, Receipt } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, ArrowUpRight, ArrowDownRight, Download, Target, Loader2, BarChart3, List, Receipt, FileText, FileSpreadsheet } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import StatCard from '../components/StatCard';
@@ -7,11 +7,15 @@ import TransactionFormModal from '../components/TransactionFormModal';
 import MonthlyFinancialReport from '../components/MonthlyFinancialReport';
 import PaymentModal from '../components/PaymentModal';
 import { useTransactions, TransactionInsert } from '@/hooks/useTransactions';
+import { useProfile } from '@/hooks/useProfile';
+import { exportFinancialPdf, exportFinancialExcel } from '@/utils/exportFinancialReport';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 const Financial: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { transactions, isLoading, summary, createTransaction } = useTransactions();
+  const { profile } = useProfile();
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -126,9 +130,27 @@ const Financial: React.FC = () => {
           >
             <Receipt className="w-4 h-4" /> Cobrar Paciente
           </button>
-          <button className="flex items-center gap-2 bg-card border border-border text-muted-foreground px-5 py-3 rounded-xl font-bold text-sm hover:border-foreground hover:text-foreground transition">
-            <Download className="w-4 h-4" /> Exportar
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 bg-card border border-border text-muted-foreground px-5 py-3 rounded-xl font-bold text-sm hover:border-foreground hover:text-foreground transition">
+                <Download className="w-4 h-4" /> Exportar
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                exportFinancialPdf({ transactions, year: new Date().getFullYear(), therapistName: profile?.full_name || undefined });
+                toast.success('PDF exportado com sucesso!');
+              }}>
+                <FileText className="w-4 h-4 mr-2" /> Exportar PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                exportFinancialExcel({ transactions, year: new Date().getFullYear(), therapistName: profile?.full_name || undefined });
+                toast.success('Excel exportado com sucesso!');
+              }}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" /> Exportar Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button 
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-xl font-bold text-sm shadow-lg"
@@ -139,7 +161,7 @@ const Financial: React.FC = () => {
       </div>
 
       {activeTab === 'report' ? (
-        <MonthlyFinancialReport transactions={transactions} />
+        <MonthlyFinancialReport transactions={transactions} therapistName={profile?.full_name || undefined} />
       ) : (
         <>
 
