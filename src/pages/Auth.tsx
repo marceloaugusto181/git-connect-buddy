@@ -74,16 +74,23 @@ const Auth: React.FC = () => {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
+          const msg = error.message;
+          if (msg.includes('Invalid login credentials')) {
             toast({
               title: 'Erro no login',
               description: 'Email ou senha incorretos.',
               variant: 'destructive',
             });
+          } else if (msg.includes('conectar ao servidor') || msg.includes('Failed to fetch')) {
+            toast({
+              title: 'Erro de conexão',
+              description: 'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.',
+              variant: 'destructive',
+            });
           } else {
             toast({
               title: 'Erro no login',
-              description: error.message,
+              description: msg,
               variant: 'destructive',
             });
           }

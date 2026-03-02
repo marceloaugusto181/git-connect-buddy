@@ -1,1 +1,10 @@
 project_id = "qahxrqctkbpfqhdfanka"
+
+[functions.create-payment]
+verify_jwt = true
+
+[functions.create-subscription]
+verify_jwt = true
+
+[functions.customer-portal]
+verify_jwt = true
