@@ -39,11 +39,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error as Error | null };
+    const maxRetries = 2;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        return { error: error as Error | null };
+      } catch (e) {
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        return { error: new Error('Erro de conexão com o servidor. Verifique sua internet e tente novamente.') };
+      }
+    }
+    return { error: new Error('Erro inesperado. Tente novamente.') };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
