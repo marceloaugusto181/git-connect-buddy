@@ -13,6 +13,22 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const fetchWithRetry = async <T,>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<T> => {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (attempt === maxRetries) throw e;
+      await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
+    }
+  }
+  throw new Error('Erro inesperado');
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -39,39 +55,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const maxRetries = 2;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        return { error: error as Error | null };
-      } catch (e) {
-        if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-          continue;
-        }
-        return { error: new Error('Erro de conexão com o servidor. Verifique sua internet e tente novamente.') };
-      }
+    try {
+      const { error } = await fetchWithRetry(() =>
+        supabase.auth.signInWithPassword({ email, password })
+      );
+      return { error: error as Error | null };
+    } catch (e) {
+      console.error('SignIn error after retries:', e);
+      return {
+        error: new Error(
+          'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.'
+        ),
+      };
     }
-    return { error: new Error('Erro inesperado. Tente novamente.') };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-    return { error: error as Error | null };
+
+    try {
+      const { error } = await fetchWithRetry(() =>
+        supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: redirectUrl,
+            data: {
+              full_name: fullName,
+            },
+          },
+        })
+      );
+      return { error: error as Error | null };
+    } catch (e) {
+      console.error('SignUp error after retries:', e);
+      return {
+        error: new Error(
+          'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.'
+        ),
+      };
+    }
   };
 
   const signOut = async () => {
