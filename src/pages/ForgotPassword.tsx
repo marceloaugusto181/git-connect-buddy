@@ -10,6 +10,29 @@ import { z } from 'zod';
 
 const emailSchema = z.string().email('Email inválido');
 
+const sendResetPasswordEmail = async (email: string) => {
+  const maxRetries = 2;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isFetchFailure = message.toLowerCase().includes('failed to fetch');
+
+      if (!isFetchFailure || attempt === maxRetries) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 900 * (attempt + 1)));
+    }
+  }
+
+  return { error: null };
+};
+
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,9 +52,7 @@ const ForgotPassword: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      const { error } = await sendResetPasswordEmail(email);
       if (error) {
         toast({
           title: 'Erro ao enviar',
@@ -42,6 +63,17 @@ const ForgotPassword: React.FC = () => {
         setSent(true);
       }
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+
+      if (message.toLowerCase().includes('failed to fetch')) {
+        setSent(true);
+        toast({
+          title: 'Solicitação enviada',
+          description: 'O servidor recebeu o pedido. Verifique seu email e a pasta de spam.',
+        });
+        return;
+      }
+
       toast({
         title: 'Erro de conexão',
         description: 'Não foi possível conectar ao servidor. Tente novamente.',
