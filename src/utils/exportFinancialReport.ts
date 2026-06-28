@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Transaction } from '@/hooks/useTransactions';
 
 interface MonthSummary {
