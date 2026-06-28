@@ -18,7 +18,7 @@ const xhrFetch: typeof fetch = (input, init = {}) => {
     xhr.open(method, url, true);
     xhr.timeout = 20000;
 
-    const setHeader = (key: string, value: string) => xhr.setRequestHeader(key, value);
+    const setHeader = (value: string, key: string) => xhr.setRequestHeader(key, value);
     if (typeof input !== 'string' && !(input instanceof URL)) {
       input.headers.forEach(setHeader);
     }
