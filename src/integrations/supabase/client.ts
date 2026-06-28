@@ -5,10 +5,55 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+const xhrFetch: typeof fetch = (input, init = {}) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+  if (!url.includes('/auth/v1/')) {
+    return window.fetch(input, init);
+  }
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const method = init.method ?? (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET');
+    xhr.open(method, url, true);
+    xhr.timeout = 20000;
+
+    const setHeader = (value: string, key: string) => xhr.setRequestHeader(key, value);
+    if (typeof input !== 'string' && !(input instanceof URL)) {
+      input.headers.forEach(setHeader);
+    }
+
+    new Headers(init.headers).forEach(setHeader);
+
+    xhr.onload = () => {
+      const headers = new Headers();
+      xhr.getAllResponseHeaders().trim().split(/[\r\n]+/).forEach((line) => {
+        const index = line.indexOf(': ');
+        if (index > 0) headers.append(line.slice(0, index), line.slice(index + 2));
+      });
+
+      resolve(new Response(xhr.responseText, {
+        status: xhr.status,
+        statusText: xhr.statusText,
+        headers,
+      }));
+    };
+
+    xhr.onerror = () => reject(new TypeError('Failed to fetch'));
+    xhr.ontimeout = () => reject(new TypeError('Failed to fetch'));
+
+    const body = init.body ?? (typeof input !== 'string' && !(input instanceof URL) ? input.body : undefined);
+    xhr.send(body as XMLHttpRequestBodyInit | null | undefined);
+  });
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  global: {
+    fetch: xhrFetch,
+  },
   auth: {
     storage: localStorage,
     persistSession: true,
