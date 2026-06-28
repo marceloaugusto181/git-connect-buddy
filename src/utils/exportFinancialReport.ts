@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Transaction } from '@/hooks/useTransactions';
 
 interface MonthSummary {
@@ -189,38 +189,43 @@ export const exportFinancialPdf = ({ transactions, year, therapistName }: Export
 };
 
 // ── Excel Export ──
-export const exportFinancialExcel = ({ transactions, year, therapistName }: ExportData) => {
-  const wb = XLSX.utils.book_new();
+export const exportFinancialExcel = async ({ transactions, year, therapistName }: ExportData) => {
+  const wb = new ExcelJS.Workbook();
   const monthly = getMonthlyData(transactions, year);
   const totalIncome = monthly.reduce((s, m) => s + m.income, 0);
   const totalExpense = monthly.reduce((s, m) => s + m.expense, 0);
   const totalSessions = monthly.reduce((s, m) => s + m.sessionCount, 0);
 
   // Sheet 1: Resumo Mensal
-  const summaryRows = [
-    ['Relatório Financeiro - ' + year],
-    [therapistName ? `Profissional: ${therapistName}` : ''],
-    [`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`],
-    [],
-    ['Mês', 'Receitas', 'Despesas', 'Saldo', 'Sessões'],
-    ...monthly.map(m => [
+  const ws1 = wb.addWorksheet('Resumo Mensal');
+  ws1.columns = [
+    { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 10 },
+  ];
+  ws1.addRow(['Relatório Financeiro - ' + year]);
+  ws1.addRow([therapistName ? `Profissional: ${therapistName}` : '']);
+  ws1.addRow([`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`]);
+  ws1.addRow([]);
+  ws1.addRow(['Mês', 'Receitas', 'Despesas', 'Saldo', 'Sessões']);
+  monthly.forEach(m => {
+    ws1.addRow([
       m.monthLabel.charAt(0).toUpperCase() + m.monthLabel.slice(1),
       m.income,
       m.expense,
       m.balance,
       m.sessionCount,
-    ]),
-    ['TOTAL', totalIncome, totalExpense, totalIncome - totalExpense, totalSessions],
-  ];
-  const ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
-  ws1['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Resumo Mensal');
+    ]);
+  });
+  ws1.addRow(['TOTAL', totalIncome, totalExpense, totalIncome - totalExpense, totalSessions]);
 
   // Sheet 2: Transações
+  const ws2 = wb.addWorksheet('Transações');
+  ws2.columns = [
+    { width: 12 }, { width: 30 }, { width: 15 }, { width: 20 }, { width: 10 }, { width: 12 }, { width: 12 },
+  ];
+  ws2.addRow(['Data', 'Descrição', 'Categoria', 'Paciente', 'Tipo', 'Valor', 'Status']);
   const yearTx = transactions.filter(t => t.date.startsWith(String(year)));
-  const txRows = [
-    ['Data', 'Descrição', 'Categoria', 'Paciente', 'Tipo', 'Valor', 'Status'],
-    ...yearTx.map(t => [
+  yearTx.forEach(t => {
+    ws2.addRow([
       format(new Date(t.date), 'dd/MM/yyyy'),
       t.description,
       t.category,
@@ -228,11 +233,15 @@ export const exportFinancialExcel = ({ transactions, year, therapistName }: Expo
       t.type === 'income' ? 'Receita' : 'Despesa',
       Number(t.amount),
       t.status || '-',
-    ]),
-  ];
-  const ws2 = XLSX.utils.aoa_to_sheet(txRows);
-  ws2['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Transações');
+    ]);
+  });
 
-  XLSX.writeFile(wb, `relatorio_financeiro_${year}.xlsx`);
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `relatorio_financeiro_${year}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
