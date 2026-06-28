@@ -279,6 +279,33 @@ export type Database = {
         }
         Relationships: []
       }
+      phi_access_audit: {
+        Row: {
+          accessed_at: string
+          action: string
+          id: string
+          record_id: string | null
+          table_name: string
+          therapist_id: string
+        }
+        Insert: {
+          accessed_at?: string
+          action: string
+          id?: string
+          record_id?: string | null
+          table_name: string
+          therapist_id: string
+        }
+        Update: {
+          accessed_at?: string
+          action?: string
+          id?: string
+          record_id?: string | null
+          table_name?: string
+          therapist_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
