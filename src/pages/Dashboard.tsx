@@ -13,7 +13,9 @@ import Automations from './Automations';
 import Security from './Security';
 import Resources from './Resources';
 import AvatarUpload from '@/components/AvatarUpload';
+import AIAssistant from '@/components/AIAssistant';
 import { Page } from '../types';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
@@ -99,7 +101,9 @@ const Dashboard: React.FC = () => {
           <div className="max-w-[1400px] mx-auto">{renderContent()}</div>
         </main>
       </div>
+      <AIAssistant contextLabel={`Página: ${activePage}`} />
     </div>
+
   );
 };
 
