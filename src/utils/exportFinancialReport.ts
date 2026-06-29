@@ -93,6 +93,32 @@ export const exportFinancialPdf = ({ transactions, year, therapistName, aiSummar
   doc.line(margin, y, pw - margin, y);
   y += 10;
 
+  // AI Summary
+  if (aiSummary && aiSummary.trim()) {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Análise da IA', margin, y);
+    y += 7;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    // Strip markdown to plain text
+    const plain = aiSummary
+      .replace(/[#*_`>]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    const wrapped = doc.splitTextToSize(plain, pw - margin * 2);
+    wrapped.forEach((line: string) => {
+      if (y > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = margin; }
+      doc.text(line, margin, y);
+      y += 4.5;
+    });
+    y += 6;
+    if (y > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = margin; }
+    doc.line(margin, y, pw - margin, y);
+    y += 10;
+  }
+
+
   // Monthly Table
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
