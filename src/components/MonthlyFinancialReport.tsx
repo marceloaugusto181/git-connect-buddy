@@ -228,8 +228,16 @@ const MonthlyFinancialReport: React.FC<MonthlyFinancialReportProps> = ({ transac
             ) : (
               <p className="text-sm text-muted-foreground">Sem dados</p>
             )}
-          </div>
         </div>
+      </div>
+
+      {/* AI Summary */}
+      <FinancialAISummary
+        transactions={transactions}
+        year={selectedYear}
+        onSummaryChange={setAiSummary}
+      />
+
       </div>
 
       {/* Evolution Charts */}
