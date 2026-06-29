@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Calendar, DollarSign, ArrowUpRight, ArrowDownRight, BarChart3, Download, FileText, FileSpreadsheet } from 'lucide-react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, Legend } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area } from 'recharts';
 import { Transaction } from '@/hooks/useTransactions';
 import { exportFinancialPdf, exportFinancialExcel } from '@/utils/exportFinancialReport';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import FinancialAISummary from './FinancialAISummary';
+
 
 interface MonthlyFinancialReportProps {
   transactions: Transaction[];
@@ -22,6 +24,8 @@ interface MonthData {
 
 const MonthlyFinancialReport: React.FC<MonthlyFinancialReportProps> = ({ transactions, therapistName }) => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+
 
   // Calculate monthly data for the selected year
   const monthlyData = useMemo(() => {
@@ -146,17 +150,18 @@ const MonthlyFinancialReport: React.FC<MonthlyFinancialReportProps> = ({ transac
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => {
-                  exportFinancialPdf({ transactions, year: selectedYear, therapistName });
+                  exportFinancialPdf({ transactions, year: selectedYear, therapistName, aiSummary: aiSummary ?? undefined });
                   toast.success('PDF exportado com sucesso!');
                 }}>
                   <FileText className="w-4 h-4 mr-2" /> Exportar PDF
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
-                  exportFinancialExcel({ transactions, year: selectedYear, therapistName });
+                  exportFinancialExcel({ transactions, year: selectedYear, therapistName, aiSummary: aiSummary ?? undefined });
                   toast.success('Excel exportado com sucesso!');
                 }}>
                   <FileSpreadsheet className="w-4 h-4 mr-2" /> Exportar Excel
                 </DropdownMenuItem>
+
               </DropdownMenuContent>
             </DropdownMenu>
           
@@ -223,8 +228,16 @@ const MonthlyFinancialReport: React.FC<MonthlyFinancialReportProps> = ({ transac
             ) : (
               <p className="text-sm text-muted-foreground">Sem dados</p>
             )}
-          </div>
         </div>
+      </div>
+
+      {/* AI Summary */}
+      <FinancialAISummary
+        transactions={transactions}
+        year={selectedYear}
+        onSummaryChange={setAiSummary}
+      />
+
       </div>
 
       {/* Evolution Charts */}

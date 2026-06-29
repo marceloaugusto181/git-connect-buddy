@@ -16,7 +16,9 @@ interface ExportData {
   transactions: Transaction[];
   year: number;
   therapistName?: string;
+  aiSummary?: string;
 }
+
 
 const getMonthlyData = (transactions: Transaction[], year: number): MonthSummary[] => {
   const data: MonthSummary[] = [];
@@ -40,7 +42,7 @@ const getMonthlyData = (transactions: Transaction[], year: number): MonthSummary
 const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
 // ── PDF Export ──
-export const exportFinancialPdf = ({ transactions, year, therapistName }: ExportData) => {
+export const exportFinancialPdf = ({ transactions, year, therapistName, aiSummary }: ExportData) => {
   const doc = new jsPDF();
   const pw = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -90,6 +92,32 @@ export const exportFinancialPdf = ({ transactions, year, therapistName }: Export
 
   doc.line(margin, y, pw - margin, y);
   y += 10;
+
+  // AI Summary
+  if (aiSummary && aiSummary.trim()) {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Análise da IA', margin, y);
+    y += 7;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    // Strip markdown to plain text
+    const plain = aiSummary
+      .replace(/[#*_`>]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    const wrapped = doc.splitTextToSize(plain, pw - margin * 2);
+    wrapped.forEach((line: string) => {
+      if (y > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = margin; }
+      doc.text(line, margin, y);
+      y += 4.5;
+    });
+    y += 6;
+    if (y > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = margin; }
+    doc.line(margin, y, pw - margin, y);
+    y += 10;
+  }
+
 
   // Monthly Table
   doc.setFontSize(12);
@@ -189,7 +217,7 @@ export const exportFinancialPdf = ({ transactions, year, therapistName }: Export
 };
 
 // ── Excel Export ──
-export const exportFinancialExcel = async ({ transactions, year, therapistName }: ExportData) => {
+export const exportFinancialExcel = async ({ transactions, year, therapistName, aiSummary }: ExportData) => {
   const wb = new ExcelJS.Workbook();
   const monthly = getMonthlyData(transactions, year);
   const totalIncome = monthly.reduce((s, m) => s + m.income, 0);
@@ -216,6 +244,18 @@ export const exportFinancialExcel = async ({ transactions, year, therapistName }
     ]);
   });
   ws1.addRow(['TOTAL', totalIncome, totalExpense, totalIncome - totalExpense, totalSessions]);
+
+  // Sheet 1.5: Análise da IA
+  if (aiSummary && aiSummary.trim()) {
+    const ws0 = wb.addWorksheet('Análise da IA');
+    ws0.columns = [{ width: 120 }];
+    ws0.addRow([`Análise gerada por IA — Ano ${year}`]);
+    ws0.addRow([]);
+    aiSummary.split('\n').forEach((line) => ws0.addRow([line]));
+    ws0.getRow(1).font = { bold: true, size: 14 };
+  }
+
+
 
   // Sheet 2: Transações
   const ws2 = wb.addWorksheet('Transações');
