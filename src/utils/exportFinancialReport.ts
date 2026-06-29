@@ -245,6 +245,18 @@ export const exportFinancialExcel = async ({ transactions, year, therapistName, 
   });
   ws1.addRow(['TOTAL', totalIncome, totalExpense, totalIncome - totalExpense, totalSessions]);
 
+  // Sheet 1.5: Análise da IA
+  if (aiSummary && aiSummary.trim()) {
+    const ws0 = wb.addWorksheet('Análise da IA');
+    ws0.columns = [{ width: 120 }];
+    ws0.addRow([`Análise gerada por IA — Ano ${year}`]);
+    ws0.addRow([]);
+    aiSummary.split('\n').forEach((line) => ws0.addRow([line]));
+    ws0.getRow(1).font = { bold: true, size: 14 };
+  }
+
+
+
   // Sheet 2: Transações
   const ws2 = wb.addWorksheet('Transações');
   ws2.columns = [
