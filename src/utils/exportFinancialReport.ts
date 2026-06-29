@@ -16,7 +16,9 @@ interface ExportData {
   transactions: Transaction[];
   year: number;
   therapistName?: string;
+  aiSummary?: string;
 }
+
 
 const getMonthlyData = (transactions: Transaction[], year: number): MonthSummary[] => {
   const data: MonthSummary[] = [];
