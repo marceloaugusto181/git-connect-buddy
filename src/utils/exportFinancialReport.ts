@@ -42,7 +42,7 @@ const getMonthlyData = (transactions: Transaction[], year: number): MonthSummary
 const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
 // ── PDF Export ──
-export const exportFinancialPdf = ({ transactions, year, therapistName }: ExportData) => {
+export const exportFinancialPdf = ({ transactions, year, therapistName, aiSummary }: ExportData) => {
   const doc = new jsPDF();
   const pw = doc.internal.pageSize.getWidth();
   const margin = 20;
