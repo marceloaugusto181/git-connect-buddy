@@ -217,7 +217,7 @@ export const exportFinancialPdf = ({ transactions, year, therapistName, aiSummar
 };
 
 // ── Excel Export ──
-export const exportFinancialExcel = async ({ transactions, year, therapistName }: ExportData) => {
+export const exportFinancialExcel = async ({ transactions, year, therapistName, aiSummary }: ExportData) => {
   const wb = new ExcelJS.Workbook();
   const monthly = getMonthlyData(transactions, year);
   const totalIncome = monthly.reduce((s, m) => s + m.income, 0);
