@@ -4,7 +4,7 @@ import StatCard from '../components/StatCard';
 import { usePatients } from '@/hooks/usePatients';
 import { useAppointments } from '@/hooks/useAppointments';
 import { createGoogleMeetEvent } from '../services/googleCalendarService';
-import { generateReminderMessage, openWhatsApp, simulateSending } from '../services/whatsappService';
+import { createWhatsAppUrl, generateReminderMessage } from '../services/whatsappService';
 
 const Agenda: React.FC = () => {
   const { patients } = usePatients();
@@ -51,18 +51,20 @@ const Agenda: React.FC = () => {
   const handleSendReminder = async (appointment: typeof appointments[0]) => {
     if (!appointment.patient?.phone) return;
     setSendingReminderId(appointment.id);
-    
-    const message = generateReminderMessage(
-      appointment.patient.name, 
-      appointment.date, 
-      appointment.time, 
-      appointment.meet_link || undefined
-    );
-    await simulateSending();
-    openWhatsApp(appointment.patient.phone, message);
-    
+
     await markReminderSent.mutateAsync(appointment.id);
     setSendingReminderId(null);
+  };
+
+  const getReminderUrl = (appointment: typeof appointments[0]) => {
+    if (!appointment.patient?.phone) return '#';
+    const message = generateReminderMessage(
+      appointment.patient.name,
+      appointment.date,
+      appointment.time,
+      appointment.meet_link || undefined
+    );
+    return createWhatsAppUrl(appointment.patient.phone, message);
   };
 
   const handleSaveAppointment = async () => {
@@ -228,17 +230,30 @@ const Agenda: React.FC = () => {
                     )}
                   </button>
                 )}
-                <button 
+                {item.reminder_sent ? (
+                  <button 
+                    disabled
+                    className="p-2 rounded-lg transition bg-emerald/20 text-emerald"
+                    title="Lembrete enviado"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </button>
+                ) : (
+                <a 
+                  href={getReminderUrl(item)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={() => handleSendReminder(item)} 
-                  disabled={sendingReminderId === item.id || item.reminder_sent} 
-                  className={`p-2 rounded-lg transition ${item.reminder_sent ? 'bg-emerald/20 text-emerald' : 'bg-muted hover:bg-primary/20 hover:text-primary'}`}
+                  className="p-2 rounded-lg transition bg-muted hover:bg-primary/20 hover:text-primary"
+                  title="Enviar lembrete pelo WhatsApp"
                 >
                   {sendingReminderId === item.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <MessageCircle className="w-4 h-4" />
                   )}
-                </button>
+                </a>
+                )}
                 {item.type === 'Online' && item.meet_link && (
                   <a href={item.meet_link} target="_blank" rel="noopener noreferrer" className="p-2 bg-primary text-primary-foreground rounded-lg">
                     <Video className="w-4 h-4" />

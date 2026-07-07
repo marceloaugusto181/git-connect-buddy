@@ -3,7 +3,7 @@ import { UserPlus, Search, X, Phone, MessageCircle, DollarSign, CheckCircle2, Al
 import { usePatients, Patient } from '@/hooks/usePatients';
 import PatientFormModal from '@/components/PatientFormModal';
 import PatientClinicalRecords from '@/components/PatientClinicalRecords';
-import { generatePaymentMessage, openWhatsApp, generateReminderMessage } from '../services/whatsappService';
+import { createWhatsAppUrl, generatePaymentMessage, generateReminderMessage } from '../services/whatsappService';
 
 const Patients: React.FC = () => {
   const { patients, loading, createPatient, updatePatient, deletePatient } = usePatients();
@@ -43,14 +43,14 @@ const Patients: React.FC = () => {
     }
   };
 
-  const handleSendPaymentReminder = (patient: Patient) => {
+  const getPaymentReminderUrl = (patient: Patient) => {
     const message = generatePaymentMessage(patient.name, `R$ ${patient.session_value || 0}`);
-    openWhatsApp(patient.phone || '', message);
+    return createWhatsAppUrl(patient.phone || '', message);
   };
 
-  const handleSendSessionReminder = (patient: Patient) => {
+  const getSessionReminderUrl = (patient: Patient) => {
     const message = generateReminderMessage(patient.name, new Date().toISOString().split('T')[0], '14:00');
-    openWhatsApp(patient.phone || '', message);
+    return createWhatsAppUrl(patient.phone || '', message);
   };
 
   const handleDelete = async (e: React.MouseEvent, patient: Patient) => {
@@ -193,12 +193,15 @@ const Patients: React.FC = () => {
               </div>
               
               <div className="flex gap-2 mt-4 pt-4 border-t border-border">
-                <button
-                  onClick={e => { e.stopPropagation(); handleSendSessionReminder(patient); }}
+                <a
+                  href={getSessionReminderUrl(patient)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
                   className="flex-1 flex items-center justify-center gap-2 py-2 bg-muted rounded-xl text-sm font-medium hover:bg-primary/20 hover:text-primary transition"
                 >
                   <MessageCircle className="w-4 h-4" /> Lembrar
-                </button>
+                </a>
                 <button
                   onClick={e => handleEdit(e, patient)}
                   className="p-2 bg-muted rounded-xl hover:bg-amber/20 hover:text-amber transition"
@@ -345,12 +348,14 @@ const Patients: React.FC = () => {
                       </div>
                     </div>
                     {selectedPatient.payment_status !== 'Em dia' && (
-                      <button
-                        onClick={() => handleSendPaymentReminder(selectedPatient)}
+                      <a
+                        href={getPaymentReminderUrl(selectedPatient)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="bg-amber text-foreground px-4 py-2 rounded-xl font-bold text-sm"
                       >
                         Enviar Cobrança
-                      </button>
+                      </a>
                     )}
                   </div>
                 </div>
