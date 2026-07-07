@@ -44,7 +44,17 @@ export const generateWelcomeMessage = (patientName: string): string => {
 
 export const openWhatsApp = (phone: string, text: string) => {
   const formattedPhone = formatPhoneForAPI(phone);
-  window.open(`https://wa.me/${formattedPhone}?text=${text}`, '_blank');
+  const url = `https://wa.me/${formattedPhone}?text=${text}`;
+
+  // Use a synthetic <a> click so the navigation is treated as a direct user
+  // gesture — avoids the popup blocker that intercepts window.open().
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 };
 
 export const simulateSending = async (): Promise<boolean> => {
