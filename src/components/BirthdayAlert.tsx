@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Cake, Gift, MessageCircle } from 'lucide-react';
 import { Patient } from '@/hooks/usePatients';
-import { openWhatsApp, generateBirthdayMessage } from '@/services/whatsappService';
+import { createWhatsAppUrl, generateBirthdayMessage } from '@/services/whatsappService';
 import { format, parseISO, isSameMonth, isSameDay, addDays, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -44,11 +44,9 @@ const BirthdayAlert: React.FC<BirthdayAlertProps> = ({ patients }) => {
       .slice(0, 5);
   }, [patients]);
 
-  const handleSendMessage = (patient: BirthdayPatient) => {
-    if (patient.phone) {
-      const message = generateBirthdayMessage(patient.name);
-      openWhatsApp(patient.phone, message);
-    }
+  const getBirthdayMessageUrl = (patient: BirthdayPatient) => {
+    const message = generateBirthdayMessage(patient.name);
+    return createWhatsAppUrl(patient.phone || '', message);
   };
 
   if (upcomingBirthdays.length === 0) {
@@ -90,13 +88,15 @@ const BirthdayAlert: React.FC<BirthdayAlertProps> = ({ patients }) => {
                 </div>
               </div>
               {patient.phone && (
-                <button
-                  onClick={() => handleSendMessage(patient)}
+                <a
+                  href={getBirthdayMessageUrl(patient)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-bold text-xs hover:bg-emerald-600 transition-colors"
                 >
                   <MessageCircle className="w-4 h-4" />
                   Parabenizar
-                </button>
+                </a>
               )}
             </div>
           ))}
@@ -127,13 +127,15 @@ const BirthdayAlert: React.FC<BirthdayAlertProps> = ({ patients }) => {
                   Em {patient.daysUntil} dia{patient.daysUntil > 1 ? 's' : ''}
                 </span>
                 {patient.phone && (
-                  <button
-                    onClick={() => handleSendMessage(patient)}
+                  <a
+                    href={getBirthdayMessageUrl(patient)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="p-2 text-muted-foreground hover:text-emerald-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                     title="Enviar mensagem de aniversário"
                   >
                     <MessageCircle className="w-4 h-4" />
-                  </button>
+                  </a>
                 )}
               </div>
             </div>

@@ -1,6 +1,12 @@
 export const formatPhoneForAPI = (phone: string): string => {
   const cleanPhone = phone.replace(/\D/g, '');
+  if (cleanPhone.startsWith('55')) return cleanPhone;
   return `55${cleanPhone}`;
+};
+
+export const createWhatsAppUrl = (phone: string, text: string): string => {
+  const formattedPhone = formatPhoneForAPI(phone);
+  return `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${text}`;
 };
 
 export const generateReminderMessage = (patientName: string, date: string, time: string, meetLink?: string): string => {
@@ -43,11 +49,7 @@ export const generateWelcomeMessage = (patientName: string): string => {
 };
 
 export const openWhatsApp = (phone: string, text: string) => {
-  const formattedPhone = formatPhoneForAPI(phone);
-  const url = `https://wa.me/${formattedPhone}?text=${text}`;
-
-  // Use a synthetic <a> click so the navigation is treated as a direct user
-  // gesture — avoids the popup blocker that intercepts window.open().
+  const url = createWhatsAppUrl(phone, text);
   const a = document.createElement('a');
   a.href = url;
   a.target = '_blank';
